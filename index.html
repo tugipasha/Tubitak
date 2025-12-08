@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Akıllı Ev Kiralama Sistemi</title>
-  <script src="/_sdk/data_sdk.js"></script>
   <script src="/_sdk/element_sdk.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -97,6 +96,7 @@
         }
     </style>
   <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
  </head>
  <body class="h-full">
   <div id="app" class="h-full w-full"></div>
@@ -117,8 +117,6 @@
 
         let currentUser = null;
         let currentView = 'login';
-        let allData = [];
-        let reservations = [];
         let rooms = [];
 
         // Initialize 10 rooms
@@ -131,20 +129,52 @@
             });
         }
 
-        const dataHandler = {
-            onDataChanged(data) {
-                allData = data;
-                
-                const users = data.filter(d => d.type === 'user');
-                reservations = data.filter(d => d.type === 'reservation');
-                
-                updateRoomStatus();
-                renderCurrentView();
+        // LocalStorage helper functions
+        function getUsers() {
+            const users = localStorage.getItem('users');
+            return users ? JSON.parse(users) : [];
+        }
+
+        function saveUser(user) {
+            const users = getUsers();
+            users.push(user);
+            localStorage.setItem('users', JSON.stringify(users));
+        }
+
+        function updateUser(updatedUser) {
+            const users = getUsers();
+            const index = users.findIndex(u => u.id === updatedUser.id);
+            if (index !== -1) {
+                users[index] = updatedUser;
+                localStorage.setItem('users', JSON.stringify(users));
             }
-        };
+        }
+
+        function getReservations() {
+            const reservations = localStorage.getItem('reservations');
+            return reservations ? JSON.parse(reservations) : [];
+        }
+
+        function saveReservation(reservation) {
+            const reservations = getReservations();
+            reservations.push(reservation);
+            localStorage.setItem('reservations', JSON.stringify(reservations));
+            updateRoomStatus();
+        }
+
+        function updateReservation(updatedReservation) {
+            const reservations = getReservations();
+            const index = reservations.findIndex(r => r.id === updatedReservation.id);
+            if (index !== -1) {
+                reservations[index] = updatedReservation;
+                localStorage.setItem('reservations', JSON.stringify(reservations));
+                updateRoomStatus();
+            }
+        }
 
         function updateRoomStatus() {
             const now = new Date();
+            const reservations = getReservations();
             
             rooms.forEach(room => {
                 const activeReservation = reservations.find(r => 
@@ -187,7 +217,7 @@
             return tc.length === 11 && /^\d+$/.test(tc);
         }
 
-        async function handleLogin(e) {
+        function handleLogin(e) {
             e.preventDefault();
             const tcKimlik = document.getElementById('login-tc').value;
             const password = document.getElementById('login-password').value;
@@ -197,11 +227,8 @@
                 return;
             }
             
-            const user = allData.find(d => 
-                d.type === 'user' && 
-                d.tc_kimlik === tcKimlik && 
-                d.password === password
-            );
+            const users = getUsers();
+            const user = users.find(u => u.tc_kimlik === tcKimlik && u.password === password);
             
             if (user) {
                 currentUser = user;
@@ -213,7 +240,7 @@
             }
         }
 
-        async function handleRegister(e) {
+        function handleRegister(e) {
             e.preventDefault();
             
             const ad = document.getElementById('reg-ad').value;
@@ -248,9 +275,8 @@
                 return;
             }
             
-            const existingUser = allData.find(d => 
-                d.type === 'user' && d.username === username
-            );
+            const users = getUsers();
+            const existingUser = users.find(u => u.username === username);
             
             if (existingUser) {
                 showToast('Bu kullanıcı adı zaten alınmış', 'error');
@@ -259,7 +285,6 @@
             
             const newUser = {
                 id: Date.now().toString(),
-                type: 'user',
                 tc_kimlik: tcKimlik,
                 username,
                 password,
@@ -271,15 +296,10 @@
                 created_at: new Date().toISOString()
             };
             
-            const result = await window.dataSdk.create(newUser);
-            
-            if (result.isOk) {
-                showToast('Üyelik başarıyla oluşturuldu!', 'success');
-                currentView = 'login';
-                renderCurrentView();
-            } else {
-                showToast('Üyelik oluşturulamadı', 'error');
-            }
+            saveUser(newUser);
+            showToast('Üyelik başarıyla oluşturuldu!', 'success');
+            currentView = 'login';
+            renderCurrentView();
         }
 
         function continueWithoutLogin() {
@@ -298,6 +318,7 @@
             if (!currentUser) return { active: null, past: [], cancelled: [] };
             
             const now = new Date();
+            const reservations = getReservations();
             const userReservations = reservations.filter(r => r.user_id === currentUser.id);
             
             const active = userReservations.find(r => 
@@ -313,21 +334,19 @@
             return { active, past, cancelled };
         }
 
-        async function cancelReservation(reservationId, reason) {
-            const reservation = allData.find(d => d.id === reservationId);
+        function cancelReservation(reservationId, reason) {
+            const reservations = getReservations();
+            const reservation = reservations.find(r => r.id === reservationId);
             if (!reservation) return;
             
             reservation.status = 'cancelled';
             reservation.cancellation_reason = reason;
             reservation.cancelled_at = new Date().toISOString();
             
-            const result = await window.dataSdk.update(reservation);
-            
-            if (result.isOk) {
-                showToast('Rezervasyon iptal edildi', 'success');
-                currentView = 'dashboard';
-                renderCurrentView();
-            }
+            updateReservation(reservation);
+            showToast('Rezervasyon iptal edildi', 'success');
+            currentView = 'dashboard';
+            renderCurrentView();
         }
 
         function makeReservation(roomNumber) {
@@ -341,7 +360,7 @@
             renderCurrentView();
         }
 
-        async function submitReservation(e) {
+        function submitReservation(e) {
             e.preventDefault();
             
             const guestCount = document.getElementById('guest-count').value;
@@ -356,6 +375,7 @@
                 return;
             }
             
+            const reservations = getReservations();
             const lastReservation = reservations
                 .filter(r => r.room_number === window.selectedRoom && r.status === 'active')
                 .sort((a, b) => new Date(b.check_out) - new Date(a.check_out))[0];
@@ -386,7 +406,7 @@
             renderCurrentView();
         }
 
-        async function processPayment(e) {
+        function processPayment(e) {
             e.preventDefault();
             
             const cardNumber = document.getElementById('card-number').value;
@@ -400,7 +420,6 @@
             
             const reservation = {
                 id: Date.now().toString(),
-                type: 'reservation',
                 user_id: currentUser.id,
                 room_number: window.pendingReservation.room_number,
                 guest_count: window.pendingReservation.guest_count,
@@ -412,14 +431,11 @@
                 created_at: new Date().toISOString()
             };
             
-            const result = await window.dataSdk.create(reservation);
-            
-            if (result.isOk) {
-                window.currentTicket = reservation;
-                currentView = 'ticket';
-                renderCurrentView();
-                showToast('Ödeme başarılı!', 'success');
-            }
+            saveReservation(reservation);
+            window.currentTicket = reservation;
+            currentView = 'ticket';
+            renderCurrentView();
+            showToast('Ödeme başarılı!', 'success');
         }
 
         function renderLogin() {
@@ -564,8 +580,6 @@
             const textColor = window.elementSdk?.config?.text_color || defaultConfig.text_color;
             const primaryColor = window.elementSdk?.config?.primary_action_color || defaultConfig.primary_action_color;
             const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
-            
-            const { active, past, cancelled } = getUserReservations();
             
             return `
                 <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
@@ -1188,7 +1202,7 @@
             `;
         }
 
-        async function changePassword() {
+        function changePassword() {
             const currentPassword = document.getElementById('current-password').value;
             const newPassword = document.getElementById('new-password').value;
             const newPasswordConfirm = document.getElementById('new-password-confirm').value;
@@ -1199,7 +1213,7 @@
             }
             
             if (!validatePassword(newPassword)) {
-                showToast('Yeni   ifre en az 1 harf ve 1 noktalama işareti içermelidir', 'error');
+                showToast('Yeni şifre en az 1 harf ve 1 noktalama işareti içermelidir', 'error');
                 return;
             }
             
@@ -1209,23 +1223,17 @@
             }
             
             currentUser.password = newPassword;
-            const result = await window.dataSdk.update(currentUser);
-            
-            if (result.isOk) {
-                showToast('Şifre başarıyla değiştirildi', 'success');
-                currentView = 'dashboard';
-                renderCurrentView();
-            } else {
-                showToast('Şifre değiştirilemedi', 'error');
-            }
+            updateUser(currentUser);
+            showToast('Şifre başarıyla değiştirildi', 'success');
+            currentView = 'dashboard';
+            renderCurrentView();
         }
 
-        async function changeUsername() {
+        function changeUsername() {
             const newUsername = document.getElementById('new-username').value;
             
-            const existingUser = allData.find(d => 
-                d.type === 'user' && d.username === newUsername && d.id !== currentUser.id
-            );
+            const users = getUsers();
+            const existingUser = users.find(u => u.username === newUsername && u.id !== currentUser.id);
             
             if (existingUser) {
                 showToast('Bu kullanıcı adı zaten kullanılıyor', 'error');
@@ -1233,15 +1241,10 @@
             }
             
             currentUser.username = newUsername;
-            const result = await window.dataSdk.update(currentUser);
-            
-            if (result.isOk) {
-                showToast('Kullanıcı adı başarıyla değiştirildi', 'success');
-                currentView = 'dashboard';
-                renderCurrentView();
-            } else {
-                showToast('Kullanıcı adı değiştirilemedi', 'error');
-            }
+            updateUser(currentUser);
+            showToast('Kullanıcı adı başarıyla değiştirildi', 'success');
+            currentView = 'dashboard';
+            renderCurrentView();
         }
 
         async function onConfigChange(config) {
@@ -1258,8 +1261,8 @@
             renderCurrentView();
         }
 
-        async function init() {
-            const initResult = await window.dataSdk.init(dataHandler);
+        function init() {
+            updateRoomStatus();
             
             if (window.elementSdk) {
                 window.elementSdk.init({
@@ -1328,11 +1331,6 @@
                 });
             }
             
-            if (!initResult.isOk) {
-                showToast('Sistem başlatılamadı', 'error');
-                return;
-            }
-            
             renderCurrentView();
         }
 
@@ -1345,5 +1343,5 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9aaecee0c67259bf',t:'MTc2NTIyMzU5OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9aaeeb8a15beed1e',t:'MTc2NTIyNDc3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
