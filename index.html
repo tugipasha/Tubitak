@@ -25,6 +25,14 @@
             font-weight: 600;
         }
         
+        @media (max-width: 768px) {
+            .room-icon {
+                width: 65px;
+                height: 65px;
+                font-size: 12px;
+            }
+        }
+        
         .room-available {
             background: #10b981;
             color: white;
@@ -123,7 +131,7 @@
             });
         }
 
-        const dataHandler =  {
+        const dataHandler = {
             onDataChanged(data) {
                 allData = data;
                 
@@ -425,10 +433,10 @@
             const welcomeMsg = window.elementSdk?.config?.welcome_message || defaultConfig.welcome_message;
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px;">
-                    <div style="background: ${surfaceColor}; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; width: 100%;">
-                        <h1 style="font-size: ${baseSize * 2}px; font-weight: 700; margin-bottom: 8px; text-align: center;">${appTitle}</h1>
-                        <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; text-align: center; margin-bottom: 32px;">${welcomeMsg}</p>
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 16px;">
+                    <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; width: 100%;">
+                        <h1 style="font-size: ${baseSize * 1.8}px; font-weight: 700; margin-bottom: 8px; text-align: center;">${appTitle}</h1>
+                        <p style="font-size: ${baseSize * 0.85}px; color: ${textColor}; opacity: 0.7; text-align: center; margin-bottom: 24px;">${welcomeMsg}</p>
                         
                         <form onsubmit="handleLogin(event)">
                             <div style="margin-bottom: 20px;">
@@ -466,9 +474,9 @@
             const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px; overflow-y: auto;">
-                    <div style="background: ${surfaceColor}; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto;">
-                        <h1 style="font-size: ${baseSize * 2}px; font-weight: 700; margin-bottom: 32px; text-align: center;">Üye Ol</h1>
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px; overflow-y: auto;">
+                    <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto;">
+                        <h1 style="font-size: ${baseSize * 1.8}px; font-weight: 700; margin-bottom: 24px; text-align: center;">Üye Ol</h1>
                         
                         <form onsubmit="handleRegister(event)">
                             <div style="margin-bottom: 16px;">
@@ -560,10 +568,10 @@
             const { active, past, cancelled } = getUserReservations();
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px;">
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
                     <div style="max-width: 1000px; margin: 0 auto;">
-                        <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700; margin-bottom: 16px;">Hoş Geldiniz, ${currentUser.ad} ${currentUser.soyad}</h1>
+                        <div style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h1 style="font-size: ${baseSize * 1.3}px; font-weight: 700; margin-bottom: 12px;">Hoş Geldiniz, ${currentUser.ad} ${currentUser.soyad}</h1>
                             <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 16px;">Kullanıcı adı: ${currentUser.username}</p>
                             <button onclick="logout()" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
                                 Çıkış Yap
@@ -615,10 +623,10 @@
             }).join('');
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px;">
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
                     <div style="max-width: 1000px; margin: 0 auto;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <h1 style="font-size: ${baseSize * 2}px; font-weight: 700;">Oda Seçimi</h1>
+                        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Oda Seçimi</h1>
                             ${currentUser ? `<button onclick="currentView='dashboard'; renderCurrentView();" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">Dashboard</button>` : `<button onclick="currentView='login'; renderCurrentView();" style="padding: 8px 16px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">Giriş Yap</button>`}
                         </div>
                         
@@ -635,8 +643,8 @@
                             </div>
                         </div>
                         
-                        <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 16px;">
+                        <div style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px;">
                                 ${roomsHTML}
                             </div>
                         </div>
@@ -655,9 +663,9 @@
             const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px; display: flex; align-items: center; justify-content: center;">
-                    <div style="background: ${surfaceColor}; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; width: 100%;">
-                        <h1 style="font-size: ${baseSize * 2}px; font-weight: 700; margin-bottom: 8px;">Rezervasyon - Oda ${window.selectedRoom}</h1>
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; width: 100%;">
+                        <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700; margin-bottom: 8px;">Rezervasyon - Oda ${window.selectedRoom}</h1>
                         <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 32px;">Rezervasyon bilgilerini giriniz</p>
                         
                         <form onsubmit="submitReservation(event)">
@@ -699,9 +707,9 @@
             const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px; display: flex; align-items: center; justify-content: center;">
-                    <div style="background: ${surfaceColor}; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; width: 100%;">
-                        <h1 style="font-size: ${baseSize * 2}px; font-weight: 700; margin-bottom: 32px;">Ödeme</h1>
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; width: 100%;">
+                        <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700; margin-bottom: 24px;">Ödeme</h1>
                         
                         <div style="background: ${bgColor}; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
                             <h3 style="font-size: ${baseSize * 1.2}px; font-weight: 600; margin-bottom: 12px;">Rezervasyon Özeti</h3>
@@ -758,10 +766,10 @@
             const checkOut = new Date(ticket.check_out).toLocaleString('tr-TR');
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px; display: flex; align-items: center; justify-content: center;">
-                    <div style="background: ${surfaceColor}; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; width: 100%; text-align: center;">
-                        <div style="font-size: ${baseSize * 3}px; margin-bottom: 16px;">🎉</div>
-                        <h1 style="font-size: ${baseSize * 2}px; font-weight: 700; margin-bottom: 16px; color: ${primaryColor};">Rezervasyon Başarılı!</h1>
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; width: 100%; text-align: center;">
+                        <div style="font-size: ${baseSize * 2.5}px; margin-bottom: 12px;">🎉</div>
+                        <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700; margin-bottom: 12px; color: ${primaryColor};">Rezervasyon Başarılı!</h1>
                         
                         <div class="qr-code" style="margin: 24px auto;">
                             <svg width="180" height="180" viewBox="0 0 180 180">
@@ -814,10 +822,10 @@
             const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px;">
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
                     <div style="max-width: 600px; margin: 0 auto;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <h1 style="font-size: ${baseSize * 2}px; font-weight: 700;">Oda Kontrol</h1>
+                        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Oda Kontrol</h1>
                             <button onclick="currentView='dashboard'; renderCurrentView();" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
                                 Dashboard
                             </button>
@@ -970,10 +978,10 @@
             }
             
             app.innerHTML = `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px;">
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
                     <div style="max-width: 800px; margin: 0 auto;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <h1 style="font-size: ${baseSize * 2}px; font-weight: 700;">Önceki Rezervasyonlarım</h1>
+                        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Önceki Rezervasyonlarım</h1>
                             <button onclick="currentView='dashboard'; renderCurrentView();" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
                                 Geri Dön
                             </button>
@@ -1025,10 +1033,10 @@
             }
             
             app.innerHTML = `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px;">
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
                     <div style="max-width: 800px; margin: 0 auto;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <h1 style="font-size: ${baseSize * 2}px; font-weight: 700;">Aktif Rezervasyonum</h1>
+                        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Aktif Rezervasyonum</h1>
                             <button onclick="currentView='dashboard'; renderCurrentView();" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
                                 Geri Dön
                             </button>
@@ -1099,10 +1107,10 @@
             }
             
             app.innerHTML = `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px;">
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
                     <div style="max-width: 800px; margin: 0 auto;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <h1 style="font-size: ${baseSize * 2}px; font-weight: 700;">Rezervasyon İptali</h1>
+                        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Rezervasyon İptali</h1>
                             <button onclick="currentView='dashboard'; renderCurrentView();" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
                                 Geri Dön
                             </button>
@@ -1129,10 +1137,10 @@
             const app = document.getElementById('app');
             
             app.innerHTML = `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 20px;">
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
                     <div style="max-width: 600px; margin: 0 auto;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <h1 style="font-size: ${baseSize * 2}px; font-weight: 700;">Bilgilerimi Değiştir</h1>
+                        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Bilgilerimi Değiştir</h1>
                             <button onclick="currentView='dashboard'; renderCurrentView();" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
                                 Geri Dön
                             </button>
@@ -1191,7 +1199,7 @@
             }
             
             if (!validatePassword(newPassword)) {
-                showToast('Yeni şifre en az 1 harf ve 1 noktalama işareti içermelidir', 'error');
+                showToast('Yeni   ifre en az 1 harf ve 1 noktalama işareti içermelidir', 'error');
                 return;
             }
             
@@ -1330,5 +1338,12 @@
 
         init();
     </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9aae9c5a1655b138',t:'MTc2NTIyMTUyOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+
+<script>
+window.addEventListener("DOMContentLoaded", () => {
+    renderCurrentView();
+});
+</script>
+
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9aaecee0c67259bf',t:'MTc2NTIyMzU5OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
