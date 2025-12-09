@@ -94,6 +94,21 @@
             justify-content: center;
             margin: 0 auto;
         }
+
+        .location-card {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .location-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        .location-card.selected {
+            border-color: #3b82f6;
+        }
     </style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
@@ -117,17 +132,32 @@
 
         let currentUser = null;
         let currentView = 'login';
-        let rooms = [];
+        let selectedLocation = null;
+        let selectedDateRange = null;
+        let availableRooms = [];
 
-        // Initialize 10 rooms
-        for (let i = 1; i <= 10; i++) {
-            rooms.push({
-                id: i,
-                number: i,
-                status: 'available',
-                currentReservation: null
-            });
-        }
+        // Konaklama noktaları
+        const locations = [
+            { id: 1, name: "Road 96 Otoyolu - İstanbul Konaklama", city: "İstanbul", highway: "Road 96", roomCount: 10 },
+            { id: 2, name: "Road 96 Otoyolu - Ankara Konaklama", city: "Ankara", highway: "Road 96", roomCount: 8 },
+            { id: 3, name: "Road 96 Otoyolu - İzmir Konaklama", city: "İzmir", highway: "Road 96", roomCount: 12 },
+            { id: 4, name: "E80 Otoyolu - Bursa Konaklama", city: "Bursa", highway: "E80", roomCount: 10 },
+            { id: 5, name: "E90 Otoyolu - Antalya Konaklama", city: "Antalya", highway: "E90", roomCount: 15 }
+        ];
+
+        // Her konum için odalar
+        const allRooms = {};
+        locations.forEach(loc => {
+            allRooms[loc.id] = [];
+            for (let i = 1; i <= loc.roomCount; i++) {
+                allRooms[loc.id].push({
+                    id: `${loc.id}-${i}`,
+                    locationId: loc.id,
+                    number: i,
+                    reservations: []
+                });
+            }
+        });
 
         // LocalStorage helper functions
         function getUsers() {
@@ -159,7 +189,6 @@
             const reservations = getReservations();
             reservations.push(reservation);
             localStorage.setItem('reservations', JSON.stringify(reservations));
-            updateRoomStatus();
         }
 
         function updateReservation(updatedReservation) {
@@ -168,30 +197,40 @@
             if (index !== -1) {
                 reservations[index] = updatedReservation;
                 localStorage.setItem('reservations', JSON.stringify(reservations));
-                updateRoomStatus();
             }
         }
 
-        function updateRoomStatus() {
-            const now = new Date();
+        function checkRoomAvailability(locationId, checkIn, checkOut) {
             const reservations = getReservations();
+            const requestStart = new Date(checkIn);
+            const requestEnd = new Date(checkOut);
+            
+            const available = [];
+            const rooms = allRooms[locationId];
             
             rooms.forEach(room => {
-                const activeReservation = reservations.find(r => 
-                    r.room_number === room.number && 
-                    r.status === 'active' &&
-                    new Date(r.check_in) <= now &&
-                    new Date(r.check_out) > now
+                const roomReservations = reservations.filter(r => 
+                    r.room_id === room.id && 
+                    r.status === 'active'
                 );
                 
-                if (activeReservation) {
-                    room.status = 'occupied';
-                    room.currentReservation = activeReservation;
-                } else {
-                    room.status = 'available';
-                    room.currentReservation = null;
+                let isAvailable = true;
+                roomReservations.forEach(res => {
+                    const resStart = new Date(res.check_in);
+                    const resEnd = new Date(res.check_out);
+                    
+                    // Çakışma kontrolü
+                    if (!(requestEnd <= resStart || requestStart >= resEnd)) {
+                        isAvailable = false;
+                    }
+                });
+                
+                if (isAvailable) {
+                    available.push(room);
                 }
             });
+            
+            return available;
         }
 
         function showToast(message, type = 'info') {
@@ -304,7 +343,7 @@
 
         function continueWithoutLogin() {
             currentUser = null;
-            currentView = 'rooms';
+            currentView = 'location-select';
             renderCurrentView();
         }
 
@@ -312,6 +351,117 @@
             currentUser = null;
             currentView = 'login';
             renderCurrentView();
+        }
+
+        function selectLocation(locationId) {
+            selectedLocation = locations.find(l => l.id === locationId);
+            currentView = 'date-select';
+            renderCurrentView();
+        }
+
+        function searchAvailableRooms(e) {
+            e.preventDefault();
+            
+            const checkIn = document.getElementById('check-in').value;
+            const checkOut = document.getElementById('check-out').value;
+            
+            if (!checkIn || !checkOut) {
+                showToast('Lütfen giriş ve çıkış tarihlerini giriniz', 'error');
+                return;
+            }
+            
+            const checkInDate = new Date(checkIn);
+            const checkOutDate = new Date(checkOut);
+            
+            if (checkOutDate <= checkInDate) {
+                showToast('Çıkış tarihi giriş tarihinden sonra olmalıdır', 'error');
+                return;
+            }
+            
+            selectedDateRange = { checkIn, checkOut };
+            availableRooms = checkRoomAvailability(selectedLocation.id, checkIn, checkOut);
+            
+            if (availableRooms.length === 0) {
+                showToast('Seçilen tarih aralığında boş oda bulunmamaktadır', 'error');
+                return;
+            }
+            
+            currentView = 'available-rooms';
+            renderCurrentView();
+        }
+
+        function selectRoom(roomId) {
+            if (!currentUser) {
+                showToast('Rezervasyon yapmak için lütfen giriş yapınız', 'error');
+                currentView = 'login';
+                renderCurrentView();
+                return;
+            }
+            
+            const room = availableRooms.find(r => r.id === roomId);
+            window.selectedRoom = room;
+            currentView = 'reservation-details';
+            renderCurrentView();
+        }
+
+        function submitReservation(e) {
+            e.preventDefault();
+            
+            const guestCount = document.getElementById('guest-count').value;
+            
+            const checkInDate = new Date(selectedDateRange.checkIn);
+            const checkOutDate = new Date(selectedDateRange.checkOut);
+            
+            const hours = (checkOutDate - checkInDate) / (1000 * 60 * 60);
+            const price = hours * 100;
+            
+            window.pendingReservation = {
+                room: window.selectedRoom,
+                guest_count: guestCount,
+                check_in: selectedDateRange.checkIn,
+                check_out: selectedDateRange.checkOut,
+                hours: hours.toFixed(1),
+                price: price,
+                location: selectedLocation
+            };
+            
+            currentView = 'payment';
+            renderCurrentView();
+        }
+
+        function processPayment(e) {
+            e.preventDefault();
+            
+            const cardNumber = document.getElementById('card-number').value;
+            const cvv = document.getElementById('cvv').value;
+            const expiry = document.getElementById('expiry').value;
+            
+            if (!cardNumber || !cvv || !expiry) {
+                showToast('Tüm kart bilgilerini giriniz', 'error');
+                return;
+            }
+            
+            const reservation = {
+                id: Date.now().toString(),
+                user_id: currentUser.id,
+                room_id: window.pendingReservation.room.id,
+                room_number: window.pendingReservation.room.number,
+                location_id: window.pendingReservation.location.id,
+                location_name: window.pendingReservation.location.name,
+                guest_count: window.pendingReservation.guest_count,
+                check_in: window.pendingReservation.check_in,
+                check_out: window.pendingReservation.check_out,
+                price: window.pendingReservation.price,
+                status: 'active',
+                ticket_number: 'TKT' + Date.now(),
+                created_at: new Date().toISOString()
+            };
+            
+            saveReservation(reservation);
+            window.currentTicket = reservation;
+            currentView = 'ticket';
+            renderCurrentView();
+            showToast('Ödeme başarılı!', 'success');
         }
 
         function getUserReservations() {
@@ -347,95 +497,6 @@
             showToast('Rezervasyon iptal edildi', 'success');
             currentView = 'dashboard';
             renderCurrentView();
-        }
-
-        function makeReservation(roomNumber) {
-            if (!currentUser) {
-                showToast('Rezervasyon yapmak için lütfen giriş yapınız', 'error');
-                return;
-            }
-            
-            currentView = 'reservation';
-            window.selectedRoom = roomNumber;
-            renderCurrentView();
-        }
-
-        function submitReservation(e) {
-            e.preventDefault();
-            
-            const guestCount = document.getElementById('guest-count').value;
-            const checkIn = document.getElementById('check-in').value;
-            const checkOut = document.getElementById('check-out').value;
-            
-            const checkInDate = new Date(checkIn);
-            const checkOutDate = new Date(checkOut);
-            
-            if (checkOutDate <= checkInDate) {
-                showToast('Çıkış saati giriş saatinden sonra olmalıdır', 'error');
-                return;
-            }
-            
-            const reservations = getReservations();
-            const lastReservation = reservations
-                .filter(r => r.room_number === window.selectedRoom && r.status === 'active')
-                .sort((a, b) => new Date(b.check_out) - new Date(a.check_out))[0];
-            
-            if (lastReservation) {
-                const lastCheckOut = new Date(lastReservation.check_out);
-                const thirtyMinutesAfter = new Date(lastCheckOut.getTime() + 30 * 60000);
-                
-                if (checkInDate < thirtyMinutesAfter) {
-                    showToast('Bu oda için en erken giriş saati: ' + thirtyMinutesAfter.toLocaleString('tr-TR'), 'error');
-                    return;
-                }
-            }
-            
-            const hours = (checkOutDate - checkInDate) / (1000 * 60 * 60);
-            const price = hours * 100;
-            
-            window.pendingReservation = {
-                room_number: window.selectedRoom,
-                guest_count: guestCount,
-                check_in: checkIn,
-                check_out: checkOut,
-                hours: hours.toFixed(1),
-                price: price
-            };
-            
-            currentView = 'payment';
-            renderCurrentView();
-        }
-
-        function processPayment(e) {
-            e.preventDefault();
-            
-            const cardNumber = document.getElementById('card-number').value;
-            const cvv = document.getElementById('cvv').value;
-            const expiry = document.getElementById('expiry').value;
-            
-            if (!cardNumber || !cvv || !expiry) {
-                showToast('Tüm kart bilgilerini giriniz', 'error');
-                return;
-            }
-            
-            const reservation = {
-                id: Date.now().toString(),
-                user_id: currentUser.id,
-                room_number: window.pendingReservation.room_number,
-                guest_count: window.pendingReservation.guest_count,
-                check_in: window.pendingReservation.check_in,
-                check_out: window.pendingReservation.check_out,
-                price: window.pendingReservation.price,
-                status: 'active',
-                ticket_number: 'TKT' + Date.now(),
-                created_at: new Date().toISOString()
-            };
-            
-            saveReservation(reservation);
-            window.currentTicket = reservation;
-            currentView = 'ticket';
-            renderCurrentView();
-            showToast('Ödeme başarılı!', 'success');
         }
 
         function renderLogin() {
@@ -572,7 +633,7 @@
             `;
         }
 
-        function renderDashboard() {
+        function renderLocationSelect() {
             const customFont = window.elementSdk?.config?.font_family || defaultConfig.font_family;
             const baseSize = window.elementSdk?.config?.font_size || defaultConfig.font_size;
             const bgColor = window.elementSdk?.config?.background_color || defaultConfig.background_color;
@@ -581,93 +642,39 @@
             const primaryColor = window.elementSdk?.config?.primary_action_color || defaultConfig.primary_action_color;
             const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
             
-            return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
-                    <div style="max-width: 1000px; margin: 0 auto;">
-                        <div style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <h1 style="font-size: ${baseSize * 1.3}px; font-weight: 700; margin-bottom: 12px;">Hoş Geldiniz, ${currentUser.ad} ${currentUser.soyad}</h1>
-                            <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 16px;">Kullanıcı adı: ${currentUser.username}</p>
-                            <button onclick="logout()" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
-                                Çıkış Yap
-                            </button>
+            const locationsHTML = locations.map(loc => `
+                <div class="location-card" onclick="selectLocation(${loc.id})" style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                        <div style="font-size: ${baseSize * 2}px; margin-right: 12px;">🏠</div>
+                        <div style="flex: 1;">
+                            <h3 style="font-size: ${baseSize * 1.1}px; font-weight: 600; margin-bottom: 4px;">${loc.name}</h3>
+                            <p style="font-size: ${baseSize * 0.85}px; color: ${textColor}; opacity: 0.7;">${loc.city} - ${loc.highway}</p>
                         </div>
-                        
-                        <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <h2 style="font-size: ${baseSize * 1.3}px; font-weight: 600; margin-bottom: 16px;">Menü</h2>
-                            <div style="display: flex; flex-direction: column; gap: 12px;">
-                                <button onclick="currentView='past-reservations'; renderCurrentView();" style="padding: 12px; background: ${surfaceColor}; border: 1px solid ${primaryColor}; color: ${primaryColor}; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: ${baseSize * 0.9}px; text-align: left;">
-                                    Önceki Rezervasyonlarım
-                                </button>
-                                <button onclick="currentView='current-reservation'; renderCurrentView();" style="padding: 12px; background: ${surfaceColor}; border: 1px solid ${primaryColor}; color: ${primaryColor}; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: ${baseSize * 0.9}px; text-align: left;">
-                                    Şu Anda Bulunan Rezervasyonum
-                                </button>
-                                <button onclick="currentView='cancel-reservation'; renderCurrentView();" style="padding: 12px; background: ${surfaceColor}; border: 1px solid ${primaryColor}; color: ${primaryColor}; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: ${baseSize * 0.9}px; text-align: left;">
-                                    Rezervasyon İptali
-                                </button>
-                                <button onclick="currentView='change-credentials'; renderCurrentView();" style="padding: 12px; background: ${surfaceColor}; border: 1px solid ${primaryColor}; color: ${primaryColor}; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: ${baseSize * 0.9}px; text-align: left;">
-                                    Şifremi / Kullanıcı Adımı Değiştir
-                                </button>
-                                <button onclick="currentView='rooms'; renderCurrentView();" style="padding: 12px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: ${baseSize}px;">
-                                    Rezervasyon Yap
-                                </button>
-                            </div>
-                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid ${bgColor};">
+                        <span style="font-size: ${baseSize * 0.85}px; color: ${textColor}; opacity: 0.7;">Oda Sayısı</span>
+                        <span style="font-size: ${baseSize * 1.1}px; font-weight: 600; color: ${primaryColor};">${loc.roomCount}</span>
                     </div>
                 </div>
-            `;
-        }
-
-        function renderRooms() {
-            const customFont = window.elementSdk?.config?.font_family || defaultConfig.font_family;
-            const baseSize = window.elementSdk?.config?.font_size || defaultConfig.font_size;
-            const bgColor = window.elementSdk?.config?.background_color || defaultConfig.background_color;
-            const surfaceColor = window.elementSdk?.config?.surface_color || defaultConfig.surface_color;
-            const textColor = window.elementSdk?.config?.text_color || defaultConfig.text_color;
-            const primaryColor = window.elementSdk?.config?.primary_action_color || defaultConfig.primary_action_color;
-            const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
-            
-            const roomsHTML = rooms.map(room => {
-                const statusClass = room.status === 'available' ? 'room-available' : 'room-occupied';
-                const onclick = room.status === 'available' ? `onclick="makeReservation(${room.number})"` : '';
-                return `
-                    <div class="room-icon ${statusClass}" ${onclick}>
-                        Oda ${room.number}
-                    </div>
-                `;
-            }).join('');
+            `).join('');
             
             return `
-                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px; overflow-y: auto;">
                     <div style="max-width: 1000px; margin: 0 auto;">
                         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
-                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Oda Seçimi</h1>
+                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Konaklama Noktası Seçin</h1>
                             ${currentUser ? `<button onclick="currentView='dashboard'; renderCurrentView();" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">Dashboard</button>` : `<button onclick="currentView='login'; renderCurrentView();" style="padding: 8px 16px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">Giriş Yap</button>`}
                         </div>
                         
-                        <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <div style="display: flex; gap: 24px; margin-bottom: 16px; font-size: ${baseSize * 0.9}px;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div style="width: 20px; height: 20px; background: #10b981; border-radius: 4px;"></div>
-                                    <span>Boş</span>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div style="width: 20px; height: 20px; background: #ef4444; border-radius: 4px;"></div>
-                                    <span>Dolu</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px;">
-                                ${roomsHTML}
-                            </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+                            ${locationsHTML}
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        function renderReservation() {
+        function renderDateSelect() {
             const customFont = window.elementSdk?.config?.font_family || defaultConfig.font_family;
             const baseSize = window.elementSdk?.config?.font_size || defaultConfig.font_size;
             const bgColor = window.elementSdk?.config?.background_color || defaultConfig.background_color;
@@ -679,30 +686,133 @@
             return `
                 <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px; display: flex; align-items: center; justify-content: center;">
                     <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; width: 100%;">
-                        <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700; margin-bottom: 8px;">Rezervasyon - Oda ${window.selectedRoom}</h1>
-                        <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 32px;">Rezervasyon bilgilerini giriniz</p>
+                        <div style="background: ${bgColor}; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                            <h2 style="font-size: ${baseSize * 1.3}px; font-weight: 600; margin-bottom: 8px;">📍 ${selectedLocation.name}</h2>
+                            <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7;">${selectedLocation.city} - ${selectedLocation.highway}</p>
+                        </div>
                         
-                        <form onsubmit="submitReservation(event)">
+                        <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700; margin-bottom: 8px;">Tarih ve Saat Seçin</h1>
+                        <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 32px;">Konaklama sürenizi belirleyin</p>
+                        
+                        <form onsubmit="searchAvailableRooms(event)">
                             <div style="margin-bottom: 20px;">
-                                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: ${baseSize * 0.9}px;">Kaç kişi kalacaksınız?</label>
-                                <input type="number" id="guest-count" min="1" max="10" value="2" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: ${baseSize}px;" required>
-                            </div>
-                            
-                            <div style="margin-bottom: 20px;">
-                                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: ${baseSize * 0.9}px;">Giriş Saati</label>
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: ${baseSize * 0.9}px;">Giriş Tarihi ve Saati</label>
                                 <input type="datetime-local" id="check-in" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: ${baseSize}px;" required>
                             </div>
                             
                             <div style="margin-bottom: 24px;">
-                                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: ${baseSize * 0.9}px;">Çıkış Saati</label>
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: ${baseSize * 0.9}px;">Çıkış Tarihi ve Saati</label>
                                 <input type="datetime-local" id="check-out" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: ${baseSize}px;" required>
                             </div>
                             
                             <button type="submit" style="width: 100%; padding: 12px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px; margin-bottom: 12px;">
-                                Devam Et
+                                Müsait Odaları Göster
                             </button>
                             
-                            <button type="button" onclick="currentView='rooms'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${surfaceColor}; color: ${secondaryColor}; border: 1px solid ${secondaryColor}; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px;">
+                            <button type="button" onclick="currentView='location-select'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${surfaceColor}; color: ${secondaryColor}; border: 1px solid ${secondaryColor}; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px;">
+                                Geri Dön
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAvailableRooms() {
+            const customFont = window.elementSdk?.config?.font_family || defaultConfig.font_family;
+            const baseSize = window.elementSdk?.config?.font_size || defaultConfig.font_size;
+            const bgColor = window.elementSdk?.config?.background_color || defaultConfig.background_color;
+            const surfaceColor = window.elementSdk?.config?.surface_color || defaultConfig.surface_color;
+            const textColor = window.elementSdk?.config?.text_color || defaultConfig.text_color;
+            const primaryColor = window.elementSdk?.config?.primary_action_color || defaultConfig.primary_action_color;
+            const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
+            
+            const checkInDate = new Date(selectedDateRange.checkIn);
+            const checkOutDate = new Date(selectedDateRange.checkOut);
+            const hours = ((checkOutDate - checkInDate) / (1000 * 60 * 60)).toFixed(1);
+            const estimatedPrice = (hours * 100).toFixed(2);
+            
+            const roomsHTML = availableRooms.map(room => `
+                <div onclick="selectRoom('${room.id}')" style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 2px solid transparent; transition: all 0.3s ease; cursor: pointer;" 
+                     onmouseover="this.style.borderColor='${primaryColor}'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.1)';" 
+                     onmouseout="this.style.borderColor='transparent'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)';">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h3 style="font-size: ${baseSize * 1.2}px; font-weight: 600; margin-bottom: 4px;">Oda ${room.number}</h3>
+                            <p style="font-size: ${baseSize * 0.85}px; color: ${textColor}; opacity: 0.7;">Seçilen tarihte müsait</p>
+                        </div>
+                        <div style="font-size: ${baseSize * 2}px;">✅</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            return `
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px; overflow-y: auto;">
+                    <div style="max-width: 800px; margin: 0 auto;">
+                        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
+                            <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700;">Müsait Odalar</h1>
+                            <button onclick="currentView='date-select'; renderCurrentView();" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
+                                Tarihleri Değiştir
+                            </button>
+                        </div>
+                        
+                        <div style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h2 style="font-size: ${baseSize * 1.2}px; font-weight: 600; margin-bottom: 12px;">📍 ${selectedLocation.name}</h2>
+                            <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 8px;">
+                                <strong>Giriş:</strong> ${checkInDate.toLocaleString('tr-TR')}
+                            </p>
+                            <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 8px;">
+                                <strong>Çıkış:</strong> ${checkOutDate.toLocaleString('tr-TR')}
+                            </p>
+                            <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 8px;">
+                                <strong>Süre:</strong> ${hours} saat
+                            </p>
+                            <p style="font-size: ${baseSize * 1.1}px; font-weight: 600; color: ${primaryColor}; margin-top: 12px;">
+                                <strong>Tahmini Ücret:</strong> ${estimatedPrice} ₺
+                            </p>
+                        </div>
+                        
+                        <div style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h2 style="font-size: ${baseSize * 1.2}px; font-weight: 600; margin-bottom: 16px;">${availableRooms.length} Boş Oda Bulundu</h2>
+                            <div style="display: grid; gap: 12px;">
+                                ${roomsHTML}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderReservationDetails() {
+            const customFont = window.elementSdk?.config?.font_family || defaultConfig.font_family;
+            const baseSize = window.elementSdk?.config?.font_size || defaultConfig.font_size;
+            const bgColor = window.elementSdk?.config?.background_color || defaultConfig.background_color;
+            const surfaceColor = window.elementSdk?.config?.surface_color || defaultConfig.surface_color;
+            const textColor = window.elementSdk?.config?.text_color || defaultConfig.text_color;
+            const primaryColor = window.elementSdk?.config?.primary_action_color || defaultConfig.primary_action_color;
+            const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
+            
+            return `
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; width: 100%;">
+                        <h1 style="font-size: ${baseSize * 1.5}px; font-weight: 700; margin-bottom: 24px;">Rezervasyon Detayları</h1>
+                        
+                        <div style="background: ${bgColor}; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                            <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Konum:</strong> ${selectedLocation.name}</p>
+                            <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Oda:</strong> ${window.selectedRoom.number}</p>
+                        </div>
+                        
+                        <form onsubmit="submitReservation(event)">
+                            <div style="margin-bottom: 24px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: ${baseSize * 0.9}px;">Kaç kişi kalacaksınız?</label>
+                                <input type="number" id="guest-count" min="1" max="10" value="2" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: ${baseSize}px;" required>
+                            </div>
+                            
+                            <button type="submit" style="width: 100%; padding: 12px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px; margin-bottom: 12px;">
+                                Ödemeye Geç
+                            </button>
+                            
+                            <button type="button" onclick="currentView='available-rooms'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${surfaceColor}; color: ${secondaryColor}; border: 1px solid ${secondaryColor}; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px;">
                                 Geri Dön
                             </button>
                         </form>
@@ -728,7 +838,8 @@
                         <div style="background: ${bgColor}; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
                             <h3 style="font-size: ${baseSize * 1.2}px; font-weight: 600; margin-bottom: 12px;">Rezervasyon Özeti</h3>
                             <div style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.8;">
-                                <p style="margin-bottom: 8px;">Oda: ${window.pendingReservation.room_number}</p>
+                                <p style="margin-bottom: 8px;">Konum: ${window.pendingReservation.location.name}</p>
+                                <p style="margin-bottom: 8px;">Oda: ${window.pendingReservation.room.number}</p>
                                 <p style="margin-bottom: 8px;">Kişi Sayısı: ${window.pendingReservation.guest_count}</p>
                                 <p style="margin-bottom: 8px;">Süre: ${window.pendingReservation.hours} saat</p>
                                 <p style="font-size: ${baseSize * 1.3}px; font-weight: 700; margin-top: 16px; color: ${primaryColor};">
@@ -758,7 +869,7 @@
                                 Ödemeyi Tamamla
                             </button>
                             
-                            <button type="button" onclick="currentView='reservation'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${surfaceColor}; color: ${secondaryColor}; border: 1px solid ${secondaryColor}; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px;">
+                            <button type="button" onclick="currentView='reservation-details'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${surfaceColor}; color: ${secondaryColor}; border: 1px solid ${secondaryColor}; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px;">
                                 Geri Dön
                             </button>
                         </form>
@@ -807,6 +918,7 @@
                         
                         <div style="background: ${bgColor}; padding: 20px; border-radius: 8px; margin-top: 24px; text-align: left;">
                             <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 12px;"><strong>Bilet Numarası:</strong> ${ticket.ticket_number}</p>
+                            <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 12px;"><strong>Konum:</strong> ${ticket.location_name}</p>
                             <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 12px;"><strong>Oda:</strong> ${ticket.room_number}</p>
                             <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 12px;"><strong>Kişi Sayısı:</strong> ${ticket.guest_count}</p>
                             <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 12px;"><strong>Giriş:</strong> ${checkIn}</p>
@@ -818,7 +930,7 @@
                             QR kodu kapı okuyucusuna göstererek odaya girebilirsiniz
                         </p>
                         
-                        <button onclick="currentView='room-control'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px; margin-top: 24px;">
+                        <button onclick="currentView='room-control'; window.currentRoomId = '${ticket.room_id}'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px; margin-top: 24px;">
                             Oda Kontrol Paneli
                         </button>
                     </div>
@@ -916,49 +1028,49 @@
             }, 1500);
         }
 
-        function renderCurrentView() {
-            const app = document.getElementById('app');
+        function renderDashboard() {
+            const customFont = window.elementSdk?.config?.font_family || defaultConfig.font_family;
+            const baseSize = window.elementSdk?.config?.font_size || defaultConfig.font_size;
+            const bgColor = window.elementSdk?.config?.background_color || defaultConfig.background_color;
+            const surfaceColor = window.elementSdk?.config?.surface_color || defaultConfig.surface_color;
+            const textColor = window.elementSdk?.config?.text_color || defaultConfig.text_color;
+            const primaryColor = window.elementSdk?.config?.primary_action_color || defaultConfig.primary_action_color;
+            const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
             
-            switch(currentView) {
-                case 'login':
-                    app.innerHTML = renderLogin();
-                    break;
-                case 'register':
-                    app.innerHTML = renderRegister();
-                    break;
-                case 'dashboard':
-                    app.innerHTML = renderDashboard();
-                    break;
-                case 'rooms':
-                    app.innerHTML = renderRooms();
-                    break;
-                case 'reservation':
-                    app.innerHTML = renderReservation();
-                    break;
-                case 'payment':
-                    app.innerHTML = renderPayment();
-                    break;
-                case 'ticket':
-                    app.innerHTML = renderTicket();
-                    break;
-                case 'room-control':
-                    app.innerHTML = renderRoomControl();
-                    break;
-                case 'past-reservations':
-                    renderPastReservations();
-                    break;
-                case 'current-reservation':
-                    renderCurrentReservation();
-                    break;
-                case 'cancel-reservation':
-                    renderCancelReservation();
-                    break;
-                case 'change-credentials':
-                    renderChangeCredentials();
-                    break;
-                default:
-                    app.innerHTML = renderLogin();
-            }
+            return `
+                <div style="background: ${bgColor}; font-family: ${customFont}, system-ui, sans-serif; font-size: ${baseSize}px; color: ${textColor}; min-height: 100%; padding: 16px;">
+                    <div style="max-width: 1000px; margin: 0 auto;">
+                        <div style="background: ${surfaceColor}; padding: 20px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h1 style="font-size: ${baseSize * 1.3}px; font-weight: 700; margin-bottom: 12px;">Hoş Geldiniz, ${currentUser.ad} ${currentUser.soyad}</h1>
+                            <p style="font-size: ${baseSize * 0.9}px; color: ${textColor}; opacity: 0.7; margin-bottom: 16px;">Kullanıcı adı: ${currentUser.username}</p>
+                            <button onclick="logout()" style="padding: 8px 16px; background: ${secondaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: ${baseSize * 0.85}px;">
+                                Çıkış Yap
+                            </button>
+                        </div>
+                        
+                        <div style="background: ${surfaceColor}; padding: 24px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <h2 style="font-size: ${baseSize * 1.3}px; font-weight: 600; margin-bottom: 16px;">Menü</h2>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <button onclick="currentView='past-reservations'; renderCurrentView();" style="padding: 12px; background: ${surfaceColor}; border: 1px solid ${primaryColor}; color: ${primaryColor}; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: ${baseSize * 0.9}px; text-align: left;">
+                                    Önceki Rezervasyonlarım
+                                </button>
+                                <button onclick="currentView='current-reservation'; renderCurrentView();" style="padding: 12px; background: ${surfaceColor}; border: 1px solid ${primaryColor}; color: ${primaryColor}; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: ${baseSize * 0.9}px; text-align: left;">
+                                    Şu Anda Bulunan Rezervasyonum
+                                </button>
+                                <button onclick="currentView='cancel-reservation'; renderCurrentView();" style="padding: 12px; background: ${surfaceColor}; border: 1px solid ${primaryColor}; color: ${primaryColor}; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: ${baseSize * 0.9}px; text-align: left;">
+                                    Rezervasyon İptali
+                                </button>
+                                <button onclick="currentView='change-credentials'; renderCurrentView();" style="padding: 12px; background: ${surfaceColor}; border: 1px solid ${primaryColor}; color: ${primaryColor}; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: ${baseSize * 0.9}px; text-align: left;">
+                                    Şifremi / Kullanıcı Adımı Değiştir
+                                </button>
+                                <button onclick="currentView='location-select'; renderCurrentView();" style="padding: 12px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: ${baseSize}px;">
+                                    Rezervasyon Yap
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function renderPastReservations() {
@@ -983,6 +1095,7 @@
             } else {
                 content = past.map(res => `
                     <div style="background: ${bgColor}; padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+                        <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Konum:</strong> ${res.location_name}</p>
                         <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Oda:</strong> ${res.room_number}</p>
                         <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Giriş:</strong> ${new Date(res.check_in).toLocaleString('tr-TR')}</p>
                         <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Çıkış:</strong> ${new Date(res.check_out).toLocaleString('tr-TR')}</p>
@@ -1037,11 +1150,12 @@
                 content = `
                     <div style="background: ${bgColor}; padding: 20px; border-radius: 8px; margin-bottom: 16px;">
                         ${isCheckedIn ? `<div style="background: ${primaryColor}; color: white; padding: 12px; border-radius: 6px; margin-bottom: 16px; text-align: center; font-weight: 600;">Odaya giriş yaptığınız tespit edildi. Şu anda konaklamaktasınız.</div>` : ''}
+                        <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Konum:</strong> ${active.location_name}</p>
                         <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Oda:</strong> ${active.room_number}</p>
                         <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Giriş:</strong> ${checkIn.toLocaleString('tr-TR')}</p>
                         <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Çıkış:</strong> ${new Date(active.check_out).toLocaleString('tr-TR')}</p>
                         <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 16px;"><strong>Ücret:</strong> ${active.price} ₺</p>
-                        ${isCheckedIn ? `<button onclick="currentView='room-control'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px;">Oda Kontrol Paneli</button>` : ''}
+                        ${isCheckedIn ? `<button onclick="currentView='room-control'; window.currentRoomId='${active.room_id}'; renderCurrentView();" style="width: 100%; padding: 12px; background: ${primaryColor}; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: ${baseSize}px;">Oda Kontrol Paneli</button>` : ''}
                     </div>
                 `;
             }
@@ -1070,7 +1184,6 @@
             const bgColor = window.elementSdk?.config?.background_color || defaultConfig.background_color;
             const surfaceColor = window.elementSdk?.config?.surface_color || defaultConfig.surface_color;
             const textColor = window.elementSdk?.config?.text_color || defaultConfig.text_color;
-            const primaryColor = window.elementSdk?.config?.primary_action_color || defaultConfig.primary_action_color;
             const secondaryColor = window.elementSdk?.config?.secondary_action_color || defaultConfig.secondary_action_color;
             
             const { active, cancelled } = getUserReservations();
@@ -1083,6 +1196,7 @@
                         <h2 style="font-size: ${baseSize * 1.3}px; font-weight: 600; margin-bottom: 16px;">İptal Edilen Rezervasyonlar</h2>
                         ${cancelled.map(res => `
                             <div style="background: ${bgColor}; padding: 16px; border-radius: 8px; margin-bottom: 12px;">
+                                <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Konum:</strong> ${res.location_name}</p>
                                 <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Oda:</strong> ${res.room_number}</p>
                                 <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>İptal Tarihi:</strong> ${new Date(res.cancelled_at).toLocaleString('tr-TR')}</p>
                                 <p style="font-size: ${baseSize * 0.9}px;"><strong>İptal Nedeni:</strong> ${res.cancellation_reason || 'Belirtilmedi'}</p>
@@ -1098,6 +1212,7 @@
                     <div>
                         <h2 style="font-size: ${baseSize * 1.3}px; font-weight: 600; margin-bottom: 16px;">Rezervasyonunuzu İptal Et</h2>
                         <div style="background: ${bgColor}; padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+                            <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Konum:</strong> ${active.location_name}</p>
                             <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Oda:</strong> ${active.room_number}</p>
                             <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 8px;"><strong>Giriş:</strong> ${new Date(active.check_in).toLocaleString('tr-TR')}</p>
                             <p style="font-size: ${baseSize * 0.9}px; margin-bottom: 16px;"><strong>Çıkış:</strong> ${new Date(active.check_out).toLocaleString('tr-TR')}</p>
@@ -1247,6 +1362,57 @@
             renderCurrentView();
         }
 
+        function renderCurrentView() {
+            const app = document.getElementById('app');
+            
+            switch(currentView) {
+                case 'login':
+                    app.innerHTML = renderLogin();
+                    break;
+                case 'register':
+                    app.innerHTML = renderRegister();
+                    break;
+                case 'dashboard':
+                    app.innerHTML = renderDashboard();
+                    break;
+                case 'location-select':
+                    app.innerHTML = renderLocationSelect();
+                    break;
+                case 'date-select':
+                    app.innerHTML = renderDateSelect();
+                    break;
+                case 'available-rooms':
+                    app.innerHTML = renderAvailableRooms();
+                    break;
+                case 'reservation-details':
+                    app.innerHTML = renderReservationDetails();
+                    break;
+                case 'payment':
+                    app.innerHTML = renderPayment();
+                    break;
+                case 'ticket':
+                    app.innerHTML = renderTicket();
+                    break;
+                case 'room-control':
+                    app.innerHTML = renderRoomControl();
+                    break;
+                case 'past-reservations':
+                    renderPastReservations();
+                    break;
+                case 'current-reservation':
+                    renderCurrentReservation();
+                    break;
+                case 'cancel-reservation':
+                    renderCancelReservation();
+                    break;
+                case 'change-credentials':
+                    renderChangeCredentials();
+                    break;
+                default:
+                    app.innerHTML = renderLogin();
+            }
+        }
+
         async function onConfigChange(config) {
             const customFont = config.font_family || defaultConfig.font_family;
             const baseSize = config.font_size || defaultConfig.font_size;
@@ -1262,8 +1428,6 @@
         }
 
         function init() {
-            updateRoomStatus();
-            
             if (window.elementSdk) {
                 window.elementSdk.init({
                     defaultConfig,
@@ -1337,11 +1501,11 @@
         init();
     </script>
 
-<script>
+  <script>
 window.addEventListener("DOMContentLoaded", () => {
     renderCurrentView();
 });
 </script>
-
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9aaeeb8a15beed1e',t:'MTc2NTIyNDc3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9ab68687c5b426ad',t:'MTc2NTMwNDUyMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
