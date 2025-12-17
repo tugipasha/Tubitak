@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Akıllı Ev Kiralama Sistemi</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {} }
+    }
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
   <script src="/_sdk/element_sdk.js"></script>
   <style>
@@ -42,16 +48,27 @@
     .lang-btn { transition: all 0.2s ease; }
     .lang-btn:hover { transform: scale(1.05); }
     .lang-btn.active { box-shadow: 0 0 0 2px #4F8EF7; }
+    
+    /* Dark Mode Transitions */
+    .dark-transition { transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+    
+    /* Dark Mode Overrides */
+    .dark .glass-card { background: rgba(31, 41, 55, 0.95); }
+    .dark input, .dark select, .dark textarea { background-color: #374151 !important; border-color: #4B5563 !important; color: #F9FAFB !important; }
+    .dark input::placeholder { color: #9CA3AF !important; }
+    .dark .room-card:not(.disabled) { background-color: #1F2937; }
+    .dark .room-card.disabled { background-color: #111827; }
+    .dark .filter-btn.bg-white { background-color: #374151 !important; }
   </style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
  </head>
- <body class="h-full bg-[#F5F7FA] overflow-auto">
+ <body class="h-full bg-[#F5F7FA] dark:bg-gray-900 overflow-auto dark-transition">
   <div id="app" class="h-full w-full"><!-- Toast Container -->
-   <div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div><!-- Language Selector -->
-   <div class="fixed top-4 left-4 z-50 flex gap-2"><button onclick="setLanguage('tr')" class="lang-btn w-10 h-10 rounded-xl bg-white shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="tr" title="Türkçe">🇹🇷</button> <button onclick="setLanguage('en')" class="lang-btn w-10 h-10 rounded-xl bg-white shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="en" title="English">🇬🇧</button> <button onclick="setLanguage('de')" class="lang-btn w-10 h-10 rounded-xl bg-white shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="de" title="Deutsch">🇩🇪</button>
+   <div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div><!-- Language & Theme Selector - Fixed Top Right on All Pages -->
+   <div class="fixed top-4 right-4 z-[200] flex gap-2"><button onclick="toggleDarkMode()" id="theme-toggle" class="theme-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl transition-all" title="Dark Mode"> <span id="theme-icon">🌙</span> </button> <button onclick="setLanguage('tr')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="tr" title="Türkçe">🇹🇷</button> <button onclick="setLanguage('en')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="en" title="English">🇬🇧</button> <button onclick="setLanguage('de')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="de" title="Deutsch">🇩🇪</button>
    </div><!-- Screen 1: Welcome -->
-   <div id="screen-welcome" class="screen h-full w-full flex flex-col items-center justify-center p-6 relative overflow-hidden">
+   <div id="screen-welcome" class="screen h-full w-full flex flex-col items-center justify-center p-6 relative overflow-hidden dark:bg-gray-900">
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
      <div class="absolute top-20 left-10 text-6xl opacity-20 float-animation">
       🏡
@@ -62,30 +79,30 @@
      <div class="absolute bottom-32 left-20 text-5xl opacity-15">
       💡
      </div>
-     <div class="absolute top-1/3 left-1/4 w-64 h-64 bg-[#4F8EF7] rounded-full opacity-5 blur-3xl"></div>
+     <div class="absolute top-1/3 left-1/4 w-64 h-64 bg-[#4F8EF7] rounded-full opacity-10 dark:opacity-20 blur-3xl"></div>
     </div>
-    <div class="relative z-10 text-center max-w-md">
-     <div class="w-28 h-28 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl pulse-glow slide-up"><span class="text-5xl">🏡</span>
+    <div class="relative z-10 text-center max-w-md"><!-- Logo Alanı - Değiştirilebilir -->
+     <div id="app-logo" class="w-28 h-28 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl pulse-glow slide-up overflow-hidden"><!-- Logo: Kendi logonuzu kullanmak için logo_url ayarını kullanın veya aşağıdaki img'yi düzenleyin --> <img id="custom-logo" src="" alt="Logo" class="w-full h-full object-contain p-3 hidden" onerror="this.style.display='none'; document.getElementById('default-logo-icon').style.display='block';"> <span id="default-logo-icon" class="text-5xl">🏡</span>
      </div>
-     <h1 id="main-title" class="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-4 slide-up-delayed" data-i18n="app_title">Akıllı Ev Kiralama Sistemi</h1>
-     <p id="main-subtitle" class="text-gray-500 text-lg mb-10 slide-up-delayed-2" data-i18n="welcome_subtitle">Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi</p>
-     <div class="space-y-4"><button onclick="showScreen('login')" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-2xl shadow-lg shadow-[#4F8EF7]/30 hover:bg-[#3D7CE5] transition-all" data-i18n="login">Giriş Yap</button> <button onclick="showScreen('register')" class="w-full py-4 bg-white text-[#4F8EF7] font-semibold rounded-2xl border-2 border-[#4F8EF7] hover:bg-[#4F8EF7]/5 transition-all" data-i18n="register">Üye Ol</button>
+     <h1 id="main-title" class="font-heading text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-4 slide-up-delayed" data-i18n="app_title">Akıllı Ev Kiralama Sistemi</h1>
+     <p id="main-subtitle" class="text-gray-500 dark:text-gray-400 text-lg mb-10 slide-up-delayed-2" data-i18n="welcome_subtitle">Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi</p>
+     <div class="space-y-4"><button onclick="showScreen('login')" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-2xl shadow-lg shadow-[#4F8EF7]/30 hover:bg-[#3D7CE5] transition-all" data-i18n="login">Giriş Yap</button> <button onclick="showScreen('register')" class="w-full py-4 bg-white dark:bg-gray-800 text-[#4F8EF7] font-semibold rounded-2xl border-2 border-[#4F8EF7] hover:bg-[#4F8EF7]/5 dark:hover:bg-[#4F8EF7]/10 transition-all" data-i18n="register">Üye Ol</button>
      </div>
     </div>
    </div><!-- Screen 2: Login -->
-   <div id="screen-login" class="screen h-full w-full hidden flex-col items-center justify-center p-6 bg-gradient-to-br from-[#F5F7FA] to-[#E8F4FD]">
+   <div id="screen-login" class="screen h-full w-full hidden flex-col items-center justify-center p-6 bg-gradient-to-br from-[#F5F7FA] to-[#E8F4FD] dark:from-gray-900 dark:to-gray-800">
     <div class="w-full max-w-md">
      <div class="glass-card rounded-3xl shadow-xl p-8">
       <div class="text-center mb-8">
        <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-3xl">🔐</span>
        </div>
-       <h2 class="font-heading text-2xl font-bold text-gray-800" data-i18n="login">Giriş Yap</h2>
-       <p class="text-gray-500 text-sm mt-2" data-i18n="access_account">Hesabınıza erişin</p>
+       <h2 class="font-heading text-2xl font-bold text-gray-800 dark:text-white" data-i18n="login">Giriş Yap</h2>
+       <p class="text-gray-500 dark:text-gray-400 text-sm mt-2" data-i18n="access_account">Hesabınıza erişin</p>
       </div>
       <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
-       <div><label class="block text-sm font-medium text-gray-700 mb-2" for="login-tc" data-i18n="tc_id">T.C. Kimlik No</label> <input type="text" id="login-tc" maxlength="11" data-i18n-placeholder="tc_placeholder" placeholder="11 haneli T.C. Kimlik No" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] focus:ring-2 focus:ring-[#4F8EF7]/20 outline-none transition-all">
+       <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="login-tc" data-i18n="tc_id">T.C. Kimlik No</label> <input type="text" id="login-tc" maxlength="11" data-i18n-placeholder="tc_placeholder" placeholder="11 haneli T.C. Kimlik No" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] focus:ring-2 focus:ring-[#4F8EF7]/20 outline-none transition-all">
        </div>
-       <div><label class="block text-sm font-medium text-gray-700 mb-2" for="login-password" data-i18n="password">Şifre</label> <input type="password" id="login-password" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] focus:ring-2 focus:ring-[#4F8EF7]/20 outline-none transition-all">
+       <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="login-password" data-i18n="password">Şifre</label> <input type="password" id="login-password" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] focus:ring-2 focus:ring-[#4F8EF7]/20 outline-none transition-all">
        </div>
        <div id="login-error" class="hidden p-3 bg-[#FF4B5C]/10 border border-[#FF4B5C]/20 rounded-xl text-[#FF4B5C] text-sm"></div><button type="submit" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-xl shadow-lg shadow-[#4F8EF7]/30 hover:bg-[#3D7CE5] transition-all" data-i18n="login">Giriş Yap</button>
       </form>
@@ -94,44 +111,44 @@
      </div>
     </div>
    </div><!-- Screen 3: Register -->
-   <div id="screen-register" class="screen h-full w-full hidden flex-col items-center justify-center p-6 overflow-auto">
+   <div id="screen-register" class="screen h-full w-full hidden flex-col items-center justify-center p-6 overflow-auto dark:bg-gray-900">
     <div class="w-full max-w-lg py-8">
      <div class="mb-8">
-      <div class="flex items-center justify-between mb-4"><span id="step-label" class="text-sm font-medium text-gray-600">Adım 1/4</span> <span id="step-title" class="text-sm font-medium text-[#4F8EF7]" data-i18n="personal_info">Kişisel Bilgiler</span>
+      <div class="flex items-center justify-between mb-4"><span id="step-label" class="text-sm font-medium text-gray-600 dark:text-gray-400">Adım 1/4</span> <span id="step-title" class="text-sm font-medium text-[#4F8EF7]" data-i18n="personal_info">Kişisel Bilgiler</span>
       </div>
-      <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
        <div id="progress-bar" class="h-full bg-gradient-to-r from-[#4F8EF7] to-[#30C48D] transition-all duration-500" style="width: 25%"></div>
       </div>
      </div>
      <div class="glass-card rounded-3xl shadow-xl p-8"><!-- Step 1 -->
       <div id="register-step-1" class="register-step">
-       <h2 class="font-heading text-xl font-bold text-gray-800 mb-6">👤 <span data-i18n="personal_info">Kişisel Bilgiler</span></h2>
+       <h2 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-6">👤 <span data-i18n="personal_info">Kişisel Bilgiler</span></h2>
        <div class="space-y-4">
         <div class="grid grid-cols-2 gap-4">
-         <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-name" data-i18n="first_name">Ad</label> <input type="text" id="reg-name" data-i18n-placeholder="your_name" placeholder="Adınız" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-name" data-i18n="first_name">Ad</label> <input type="text" id="reg-name" data-i18n-placeholder="your_name" placeholder="Adınız" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
          </div>
-         <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-surname" data-i18n="last_name">Soyad</label> <input type="text" id="reg-surname" data-i18n-placeholder="your_surname" placeholder="Soyadınız" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-surname" data-i18n="last_name">Soyad</label> <input type="text" id="reg-surname" data-i18n-placeholder="your_surname" placeholder="Soyadınız" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
          </div>
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-phone" data-i18n="phone">Telefon</label> <input type="tel" id="reg-phone" placeholder="0(5XX) XXX XX XX" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-phone" data-i18n="phone">Telefon</label> <input type="tel" id="reg-phone" placeholder="0(5XX) XXX XX XX" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-email" data-i18n="email">E-posta</label> <input type="email" id="reg-email" placeholder="ornek@email.com" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-email" data-i18n="email">E-posta</label> <input type="email" id="reg-email" placeholder="ornek@email.com" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-tc" data-i18n="tc_id">T.C. Kimlik No</label> <input type="text" id="reg-tc" maxlength="11" data-i18n-placeholder="tc_placeholder" placeholder="11 haneli T.C. Kimlik No" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-tc" data-i18n="tc_id">T.C. Kimlik No</label> <input type="text" id="reg-tc" maxlength="11" data-i18n-placeholder="tc_placeholder" placeholder="11 haneli T.C. Kimlik No" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-gender" data-i18n="gender">Cinsiyet</label> <select id="reg-gender" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none bg-white"> <option value="">Seçiniz</option> <option value="male">Erkek</option> <option value="female">Kadın</option> <option value="other">Belirtmek İstemiyorum</option> </select>
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-gender" data-i18n="gender">Cinsiyet</label> <select id="reg-gender" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none bg-white"> <option value="" data-i18n-opt="select">Seçiniz</option> <option value="male" data-i18n-opt="male">Erkek</option> <option value="female" data-i18n-opt="female">Kadın</option> <option value="other" data-i18n-opt="prefer_not_say">Belirtmek İstemiyorum</option> </select>
         </div>
        </div>
       </div><!-- Step 2 -->
       <div id="register-step-2" class="register-step hidden">
-       <h2 class="font-heading text-xl font-bold text-gray-800 mb-6">🔐 <span data-i18n="account_info">Hesap Bilgileri</span></h2>
+       <h2 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-6">🔐 <span data-i18n="account_info">Hesap Bilgileri</span></h2>
        <div class="space-y-4">
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-username" data-i18n="username">Kullanıcı Adı</label> <input type="text" id="reg-username" placeholder="kullanici.adi" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-username" data-i18n="username">Kullanıcı Adı</label> <input type="text" id="reg-username" placeholder="kullanici.adi" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-password" data-i18n="password">Şifre</label> <input type="password" id="reg-password" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
-         <div class="mt-2 p-3 bg-[#4F8EF7]/5 rounded-lg">
-          <p class="text-xs text-gray-600 font-medium mb-1" data-i18n="password_requirements">Şifre gereksinimleri:</p>
-          <ul class="text-xs text-gray-500 space-y-1">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-password" data-i18n="password">Şifre</label> <input type="password" id="reg-password" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+         <div class="mt-2 p-3 bg-[#4F8EF7]/5 dark:bg-[#4F8EF7]/10 rounded-lg">
+          <p class="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1" data-i18n="password_requirements">Şifre gereksinimleri:</p>
+          <ul class="text-xs text-gray-500 dark:text-gray-400 space-y-1">
            <li id="req-length">○ <span data-i18n="req_length">En az 8 karakter</span></li>
            <li id="req-upper">○ <span data-i18n="req_upper">En az 1 büyük harf</span></li>
            <li id="req-number">○ <span data-i18n="req_number">En az 1 rakam</span></li>
@@ -139,20 +156,20 @@
           </ul>
          </div>
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" for="reg-password-confirm" data-i18n="password_confirm">Şifre Tekrar</label> <input type="password" id="reg-password-confirm" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-password-confirm" data-i18n="password_confirm">Şifre Tekrar</label> <input type="password" id="reg-password-confirm" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
        </div>
       </div><!-- Step 3 -->
       <div id="register-step-3" class="register-step hidden">
-       <h2 class="font-heading text-xl font-bold text-gray-800 mb-6">📋 <span data-i18n="agreements">Sözleşmeler</span></h2>
-       <div class="space-y-4"><label class="flex items-start gap-4 p-4 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"> <input type="checkbox" id="agree-terms" class="w-5 h-5 mt-0.5 rounded border-gray-300 text-[#4F8EF7]">
+       <h2 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-6">📋 <span data-i18n="agreements">Sözleşmeler</span></h2>
+       <div class="space-y-4"><label class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"> <input type="checkbox" id="agree-terms" class="w-5 h-5 mt-0.5 rounded border-gray-300 text-[#4F8EF7]">
          <div>
-          <p class="font-medium text-gray-800" data-i18n="terms_of_use">Kullanım Şartları</p>
-          <p class="text-sm text-gray-500" data-i18n="terms_desc">Hizmet kullanım koşullarını okudum ve kabul ediyorum.</p>
-         </div></label> <label class="flex items-start gap-4 p-4 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"> <input type="checkbox" id="agree-kvkk" class="w-5 h-5 mt-0.5 rounded border-gray-300 text-[#4F8EF7]">
+          <p class="font-medium text-gray-800 dark:text-white" data-i18n="terms_of_use">Kullanım Şartları</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="terms_desc">Hizmet kullanım koşullarını okudum ve kabul ediyorum.</p>
+         </div></label> <label class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"> <input type="checkbox" id="agree-kvkk" class="w-5 h-5 mt-0.5 rounded border-gray-300 text-[#4F8EF7]">
          <div>
-          <p class="font-medium text-gray-800" data-i18n="privacy_policy">KVKK &amp; Gizlilik Politikası</p>
-          <p class="text-sm text-gray-500" data-i18n="privacy_desc">Kişisel verilerimin işlenmesine ilişkin aydınlatma metnini okudum.</p>
+          <p class="font-medium text-gray-800 dark:text-white" data-i18n="privacy_policy">KVKK &amp; Gizlilik Politikası</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="privacy_desc">Kişisel verilerimin işlenmesine ilişkin aydınlatma metnini okudum.</p>
          </div></label>
         <div id="agreement-error" class="hidden p-3 bg-[#FF4B5C]/10 border border-[#FF4B5C]/20 rounded-xl text-[#FF4B5C] text-sm"></div>
        </div>
@@ -160,107 +177,106 @@
       <div id="register-step-4" class="register-step hidden text-center py-8">
        <div class="w-24 h-24 bg-[#30C48D]/10 rounded-full flex items-center justify-center mx-auto mb-6"><span class="text-5xl">🎉</span>
        </div>
-       <h2 class="font-heading text-2xl font-bold text-gray-800 mb-3" data-i18n="register_success">Üyelik Başarılı!</h2>
-       <p class="text-gray-500 mb-8" data-i18n="register_success_desc">Hesabınız başarıyla oluşturuldu.</p><button onclick="showScreen('login')" class="px-8 py-4 bg-[#30C48D] text-white font-semibold rounded-xl" data-i18n="login">Giriş Yap</button>
+       <h2 class="font-heading text-2xl font-bold text-gray-800 dark:text-white mb-3" data-i18n="register_success">Üyelik Başarılı!</h2>
+       <p class="text-gray-500 dark:text-gray-400 mb-8" data-i18n="register_success_desc">Hesabınız başarıyla oluşturuldu.</p><button onclick="showScreen('login')" class="px-8 py-4 bg-[#30C48D] text-white font-semibold rounded-xl" data-i18n="login">Giriş Yap</button>
       </div>
-      <div id="register-nav" class="flex gap-4 mt-8"><button onclick="prevStep()" id="btn-prev" class="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hidden" data-i18n="back">← Geri</button> <button onclick="nextStep()" id="btn-next" class="flex-1 py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl" data-i18n="next">İleri →</button>
+      <div id="register-nav" class="flex gap-4 mt-8"><button onclick="prevStep()" id="btn-prev" class="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hidden" data-i18n="back">← Geri</button> <button onclick="nextStep()" id="btn-next" class="flex-1 py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl" data-i18n="next">İleri →</button>
       </div>
       <div id="register-error" class="hidden mt-4 p-3 bg-[#FF4B5C]/10 border border-[#FF4B5C]/20 rounded-xl text-[#FF4B5C] text-sm"></div>
-     </div><button onclick="showScreen('welcome')" class="text-gray-400 hover:text-gray-600 text-sm mt-6 block mx-auto" data-i18n="back_home">← Ana sayfaya dön</button>
+     </div><button onclick="showScreen('welcome')" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-sm mt-6 block mx-auto" data-i18n="back_home">← Ana sayfaya dön</button>
     </div>
    </div><!-- Screen 4: Dashboard -->
    <div id="screen-dashboard" class="screen h-full w-full hidden">
     <div class="flex h-full"><!-- Sidebar -->
-     <aside id="sidebar" class="w-72 bg-white h-full shadow-xl flex flex-col fixed md:relative z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300">
-      <div class="p-6 border-b border-gray-100">
+     <aside id="sidebar" class="w-72 bg-white dark:bg-gray-800 h-full shadow-xl flex flex-col fixed md:relative z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300">
+      <div class="p-6 border-b border-gray-100 dark:border-gray-700">
        <div class="flex items-center gap-4">
         <div id="user-avatar" class="w-14 h-14 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-2xl flex items-center justify-center text-white text-xl font-bold">
          --
         </div>
         <div>
-         <h3 id="user-fullname" class="font-heading font-semibold text-gray-800">Kullanıcı</h3>
+         <h3 id="user-fullname" class="font-heading font-semibold text-gray-800 dark:text-white">Kullanıcı</h3>
          <p id="user-username" class="text-sm text-gray-400">@kullanici</p>
         </div>
        </div>
       </div>
-      <nav class="flex-1 py-4"><button onclick="setActiveMenu(this); showDashboardSection('home')" class="sidebar-item active w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">🏠</span> <span class="font-medium text-gray-700" data-i18n="home">Ana Sayfa</span> </button> <button onclick="setActiveMenu(this); showScreen('locations')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">➕</span> <span class="font-medium text-gray-700" data-i18n="new_reservation">Yeni Rezervasyon</span> </button> <button onclick="setActiveMenu(this); showDashboardSection('history')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">📋</span> <span class="font-medium text-gray-700" data-i18n="reservation_history">Rezervasyon Geçmişi</span> </button> <button onclick="setActiveMenu(this); showDashboardSection('settings')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">⚙️</span> <span class="font-medium text-gray-700" data-i18n="account_settings">Hesap Ayarları</span> </button>
+      <nav class="flex-1 py-4"><button onclick="setActiveMenu(this); showDashboardSection('home')" class="sidebar-item active w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">🏠</span> <span class="font-medium text-gray-700 dark:text-gray-300" data-i18n="home">Ana Sayfa</span> </button> <button onclick="setActiveMenu(this); showScreen('locations')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">➕</span> <span class="font-medium text-gray-700 dark:text-gray-300" data-i18n="new_reservation">Yeni Rezervasyon</span> </button> <button onclick="setActiveMenu(this); showDashboardSection('history')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">📋</span> <span class="font-medium text-gray-700 dark:text-gray-300" data-i18n="reservation_history">Rezervasyon Geçmişi</span> </button> <button onclick="setActiveMenu(this); showDashboardSection('settings')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">⚙️</span> <span class="font-medium text-gray-700 dark:text-gray-300" data-i18n="account_settings">Hesap Ayarları</span> </button>
       </nav>
-      <div class="p-4 border-t border-gray-100"><button onclick="handleLogout()" class="w-full flex items-center gap-4 px-4 py-3 text-left text-[#FF4B5C] hover:bg-[#FF4B5C]/5 rounded-xl"> <span class="text-xl">🚪</span> <span class="font-medium" data-i18n="logout">Çıkış Yap</span> </button>
+      <div class="p-4 border-t border-gray-100 dark:border-gray-700"><button onclick="handleLogout()" class="w-full flex items-center gap-4 px-4 py-3 text-left text-[#FF4B5C] hover:bg-[#FF4B5C]/5 dark:hover:bg-[#FF4B5C]/10 rounded-xl"> <span class="text-xl">���</span> <span class="font-medium" data-i18n="logout">Çıkış Yap</span> </button>
       </div>
      </aside><!-- Mobile Header -->
-     <div class="md:hidden fixed top-0 left-0 right-0 bg-white shadow-md z-40 px-4 py-3 flex items-center justify-between"><button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 rounded-xl">
-       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+     <div class="md:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-md z-40 px-4 py-3 flex items-center justify-between"><button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl">
+       <svg class="w-6 h-6 dark:text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-       </svg></button> <span class="font-heading font-semibold" data-i18n="smart_home">Akıllı Ev</span>
+       </svg></button> <span class="font-heading font-semibold dark:text-white" data-i18n="smart_home">Akıllı Ev</span>
       <div id="mobile-avatar" class="w-10 h-10 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-xl flex items-center justify-center text-white text-sm font-bold">
        --
       </div>
      </div>
      <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div><!-- Main Content -->
-     <main class="flex-1 p-6 md:p-8 overflow-auto pt-20 md:pt-8">
+     <main class="flex-1 p-6 md:p-8 overflow-auto pt-20 md:pt-8 dark:bg-gray-900">
       <div id="dashboard-home" class="dashboard-section">
-       <h1 id="welcome-title" class="font-heading text-2xl md:text-3xl font-bold text-gray-800 mb-2">Hoş Geldiniz! 👋</h1>
-       <p class="text-gray-500 mb-8" data-i18n="dashboard_overview">Akıllı ev kiralama sisteminize genel bakış</p>
-       <div id="no-reservation-card" class="bg-white rounded-3xl p-8 shadow-lg mb-8 text-center">
-        <div class="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-4xl">🏠</span>
+       <h1 id="welcome-title" class="font-heading text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2">Hoş Geldiniz! 👋</h1>
+       <p class="text-gray-500 dark:text-gray-400 mb-8" data-i18n="dashboard_overview">Akıllı ev kiralama sisteminize genel bakış</p>
+       <div id="no-reservation-card" class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg mb-8 text-center">
+        <div class="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-4xl">🏠</span>
         </div>
-        <h3 class="font-heading text-xl font-bold text-gray-800 mb-2" data-i18n="no_active_reservation">Aktif Rezervasyonunuz Yok</h3>
-        <p class="text-gray-500 mb-6" data-i18n="no_reservation_desc">Hemen yeni bir rezervasyon oluşturun.</p><button onclick="showScreen('locations')" class="px-6 py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl"> ➕ <span data-i18n="new_reservation">Yeni Rezervasyon</span> </button>
+        <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="no_active_reservation">Aktif Rezervasyonunuz Yok</h3>
+        <p class="text-gray-500 dark:text-gray-400 mb-6" data-i18n="no_reservation_desc">Hemen yeni bir rezervasyon oluşturun.</p><button onclick="showScreen('locations')" class="px-6 py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl"> ➕ <span data-i18n="new_reservation">Yeni Rezervasyon</span> </button>
        </div>
        <div id="user-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-white rounded-2xl p-5 shadow-lg">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg">
          <div class="text-3xl mb-2">
           🏠
          </div>
-         <p id="stat-total" class="text-2xl font-bold text-gray-800">0</p>
-         <p class="text-sm text-gray-500" data-i18n="total_stays">Toplam Konaklama</p>
+         <p id="stat-total" class="text-2xl font-bold text-gray-800 dark:text-white">0</p>
+         <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="total_stays">Toplam Konaklama</p>
         </div>
-        <div class="bg-white rounded-2xl p-5 shadow-lg">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg">
          <div class="text-3xl mb-2">
           ⏱️
          </div>
-         <p id="stat-hours" class="text-2xl font-bold text-gray-800">0</p>
-         <p class="text-sm text-gray-500" data-i18n="hours">Saat</p>
+         <p id="stat-hours" class="text-2xl font-bold text-gray-800 dark:text-white">0</p>
+         <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="hours">Saat</p>
         </div>
-        <div class="bg-white rounded-2xl p-5 shadow-lg">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg">
          <div class="text-3xl mb-2">
           ⭐
          </div>
-         <p class="text-2xl font-bold text-gray-800">-</p>
-         <p class="text-sm text-gray-500" data-i18n="avg_rating">Puan Ortalaması</p>
+         <p class="text-2xl font-bold text-gray-800 dark:text-white">-</p>
+         <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="avg_rating">Puan Ortalaması</p>
         </div>
-        <div class="bg-white rounded-2xl p-5 shadow-lg">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg">
          <div class="text-3xl mb-2">
           💎
          </div>
-         <p id="stat-level" class="text-2xl font-bold text-[#4F8EF7]">Başlangıç</p>
-         <p class="text-sm text-gray-500" data-i18n="membership_level">Üyelik Seviyesi</p>
+         <p id="stat-level" class="text-2xl font-bold text-[#4F8EF7]" data-i18n="starter">Başlangıç</p>
+         <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="membership_level">Üyelik Seviyesi</p>
         </div>
        </div>
       </div>
       <div id="dashboard-history" class="dashboard-section hidden">
-       <h1 class="font-heading text-2xl font-bold text-gray-800 mb-2" data-i18n="reservation_history">Rezervasyon Geçmişi</h1>
-       <p class="text-gray-500 mb-6" data-i18n="history_desc">Tüm rezervasyonlarınızı görüntüleyin ve yönetin</p>
+       <h1 class="font-heading text-2xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="reservation_history">Rezervasyon Geçmişi</h1>
+       <p class="text-gray-500 dark:text-gray-400 mb-6" data-i18n="history_desc">Tüm rezervasyonlarınızı görüntüleyin ve yönetin</p>
        <div class="flex gap-3 mb-6 overflow-x-auto pb-2"><button onclick="filterReservations('all')" class="filter-btn active px-4 py-2 bg-[#4F8EF7] text-white rounded-xl font-medium whitespace-nowrap" data-filter="all" data-i18n="all">Tümü</button> <button onclick="filterReservations('active')" class="filter-btn px-4 py-2 bg-white text-gray-600 rounded-xl font-medium whitespace-nowrap" data-filter="active" data-i18n="active_reservations">Aktif</button> <button onclick="filterReservations('completed')" class="filter-btn px-4 py-2 bg-white text-gray-600 rounded-xl font-medium whitespace-nowrap" data-filter="completed" data-i18n="completed_reservations">Tamamlanan</button> <button onclick="filterReservations('cancelled')" class="filter-btn px-4 py-2 bg-white text-gray-600 rounded-xl font-medium whitespace-nowrap" data-filter="cancelled" data-i18n="cancelled_reservations">İptal Edilen</button>
        </div>
-       <div id="reservations-list" class="space-y-4"><!-- Rezervasyonlar buraya yüklenecek -->
-       </div>
+       <div id="reservations-list" class="space-y-4"></div>
        <div id="no-reservations" class="hidden text-center py-12">
-        <div class="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-4xl">📭</span>
+        <div class="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-4xl">📭</span>
         </div>
-        <h3 class="font-heading text-xl font-bold text-gray-800 mb-2" data-i18n="no_reservations">Rezervasyon Bulunamadı</h3>
-        <p class="text-gray-500" data-i18n="no_reservations_desc">Bu kategoride henüz rezervasyonunuz yok.</p>
+        <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="no_reservations">Rezervasyon Bulunamadı</h3>
+        <p class="text-gray-500 dark:text-gray-400" data-i18n="no_reservations_desc">Bu kategoride henüz rezervasyonunuz yok.</p>
        </div>
       </div>
       <div id="dashboard-settings" class="dashboard-section hidden">
-       <h1 class="font-heading text-2xl font-bold text-gray-800 mb-6" data-i18n="account_settings">Hesap Ayarları</h1>
-       <div class="bg-white rounded-3xl shadow-xl p-6 max-w-2xl">
+       <h1 class="font-heading text-2xl font-bold text-gray-800 dark:text-white mb-6" data-i18n="account_settings">Hesap Ayarları</h1>
+       <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 max-w-2xl">
         <div class="space-y-6">
-         <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="full_name">Ad Soyad</label> <input type="text" id="settings-name" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50" readonly>
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="full_name">Ad Soyad</label> <input type="text" id="settings-name" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white" readonly>
          </div>
-         <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="email">E-posta</label> <input type="email" id="settings-email" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50" readonly>
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="email">E-posta</label> <input type="email" id="settings-email" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white" readonly>
          </div>
-         <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="phone">Telefon</label> <input type="tel" id="settings-phone" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50" readonly>
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="phone">Telefon</label> <input type="tel" id="settings-phone" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white" readonly>
          </div>
         </div>
        </div>
@@ -268,104 +284,104 @@
      </main>
     </div>
    </div><!-- Screen 5: Locations -->
-   <div id="screen-locations" class="screen h-full w-full hidden overflow-auto">
-    <div class="p-6 md:p-8 pt-16 md:pt-6"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6"> <span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span> </button>
-     <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 mb-2" data-i18n="select_location">Konaklama Noktası Seçin</h1>
-     <p class="text-gray-500 mb-8" data-i18n="select_location_desc">Size en uygun lokasyonu seçin</p>
-     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><button onclick="selectLocation('istanbul-kadikoy', 'İstanbul - Kadıköy')" class="room-card bg-white rounded-3xl p-6 shadow-lg text-left">
+   <div id="screen-locations" class="screen h-full w-full hidden overflow-auto dark:bg-gray-900">
+    <div class="p-6 md:p-8 pt-16 md:pt-6"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span> </button>
+     <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="select_location">Konaklama Noktası Seçin</h1>
+     <p class="text-gray-500 dark:text-gray-400 mb-8" data-i18n="select_location_desc">Size en uygun lokasyonu seçin</p>
+     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><button onclick="selectLocation('istanbul-kadikoy', 'İstanbul - Kadıköy')" class="room-card bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg text-left">
        <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mb-4">
         <span class="text-3xl">🏠</span>
-       </div><h3 class="font-heading text-xl font-bold text-gray-800 mb-1">İstanbul - Kadıköy</h3><p class="text-gray-500 mb-4">İstanbul, Türkiye</p>
+       </div><h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-1">İstanbul - Kadıköy</h3><p class="text-gray-500 dark:text-gray-400 mb-4">İstanbul, Türkiye</p>
        <div class="flex items-center gap-2"><span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-sm">12 <span data-i18n="rooms">Oda</span></span> <span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-sm">8 <span data-i18n="available">Müsait</span></span>
-       </div></button> <button onclick="selectLocation('istanbul-besiktas', 'İstanbul - Beşiktaş')" class="room-card bg-white rounded-3xl p-6 shadow-lg text-left">
+       </div></button> <button onclick="selectLocation('istanbul-besiktas', 'İstanbul - Beşiktaş')" class="room-card bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg text-left">
        <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mb-4">
         <span class="text-3xl">🏠</span>
-       </div><h3 class="font-heading text-xl font-bold text-gray-800 mb-1">İstanbul - Beşiktaş</h3><p class="text-gray-500 mb-4">İstanbul, Türkiye</p>
+       </div><h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-1">İstanbul - Beşiktaş</h3><p class="text-gray-500 dark:text-gray-400 mb-4">İstanbul, Türkiye</p>
        <div class="flex items-center gap-2"><span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-sm">8 <span data-i18n="rooms">Oda</span></span> <span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-sm">5 <span data-i18n="available">Müsait</span></span>
-       </div></button> <button onclick="selectLocation('ankara-cankaya', 'Ankara - Çankaya')" class="room-card bg-white rounded-3xl p-6 shadow-lg text-left">
+       </div></button> <button onclick="selectLocation('ankara-cankaya', 'Ankara - Çankaya')" class="room-card bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg text-left">
        <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mb-4">
         <span class="text-3xl">🏠</span>
-       </div><h3 class="font-heading text-xl font-bold text-gray-800 mb-1">Ankara - Çankaya</h3><p class="text-gray-500 mb-4">Ankara, Türkiye</p>
+       </div><h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-1">Ankara - Çankaya</h3><p class="text-gray-500 dark:text-gray-400 mb-4">Ankara, Türkiye</p>
        <div class="flex items-center gap-2"><span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-sm">15 <span data-i18n="rooms">Oda</span></span> <span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-sm">10 <span data-i18n="available">Müsait</span></span>
        </div></button>
      </div>
     </div>
    </div><!-- Screen 6: DateTime -->
-   <div id="screen-datetime" class="screen h-full w-full hidden overflow-auto">
-    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('locations')" class="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6"> <span>←</span> <span data-i18n="back_locations">Lokasyonlara Dön</span> </button>
-     <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 mb-2" data-i18n="select_datetime">Tarih &amp; Saat Seçin</h1>
-     <p id="datetime-location" class="text-gray-500 mb-8">Lokasyon</p>
-     <div class="bg-white rounded-3xl shadow-xl p-6 md:p-8">
+   <div id="screen-datetime" class="screen h-full w-full hidden overflow-auto dark:bg-gray-900">
+    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('locations')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_locations">Lokasyonlara Dön</span> </button>
+     <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="select_datetime">Tarih &amp; Saat Seçin</h1>
+     <p id="datetime-location" class="text-gray-500 dark:text-gray-400 mb-8">Lokasyon</p>
+     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 md:p-8">
       <div class="space-y-6">
-       <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="checkin_datetime">Giriş Tarihi &amp; Saati</label> <input type="datetime-local" id="checkin" required class="w-full px-4 py-4 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none text-lg">
+       <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="checkin_datetime">Giriş Tarihi &amp; Saati</label> <input type="datetime-local" id="checkin" required class="w-full px-4 py-4 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none text-lg">
        </div>
-       <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="checkout_datetime">Çıkış Tarihi &amp; Saati</label> <input type="datetime-local" id="checkout" required class="w-full px-4 py-4 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none text-lg">
+       <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="checkout_datetime">Çıkış Tarihi &amp; Saati</label> <input type="datetime-local" id="checkout" required class="w-full px-4 py-4 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none text-lg">
        </div>
        <div class="p-4 bg-[#FF4B5C]/10 rounded-xl">
         <p class="font-medium text-[#FF4B5C] text-sm">⚠️ <span data-i18n="max_duration_warning">Maksimum Süre Uyarısı</span></p>
-        <p class="text-sm text-gray-600 mt-1" data-i18n="max_duration_desc">Tek seferde maksimum 24 saat konaklama yapabilirsiniz.</p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1" data-i18n="max_duration_desc">Tek seferde maksimum 24 saat konaklama yapabilirsiniz.</p>
        </div>
        <div id="datetime-error" class="hidden p-3 bg-[#FF4B5C]/10 rounded-xl text-[#FF4B5C] text-sm"></div><button onclick="validateDateTime()" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-xl" data-i18n="show_available_rooms">Müsait Odaları Göster</button>
       </div>
      </div>
     </div>
    </div><!-- Screen 7: Rooms -->
-   <div id="screen-rooms" class="screen h-full w-full hidden overflow-auto">
-    <div class="p-6 md:p-8 pt-16 md:pt-6"><button onclick="showScreen('datetime')" class="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6"> <span>←</span> <span data-i18n="back_datetime">Tarih Seçimine Dön</span> </button>
-     <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 mb-2" data-i18n="select_room">Oda Seçin</h1>
-     <p id="rooms-info" class="text-gray-500 mb-4">Lokasyon • Tarih</p>
+   <div id="screen-rooms" class="screen h-full w-full hidden overflow-auto dark:bg-gray-900">
+    <div class="p-6 md:p-8 pt-16 md:pt-6"><button onclick="showScreen('datetime')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_datetime">Tarih Seçimine Dön</span> </button>
+     <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="select_room">Oda Seçin</h1>
+     <p id="rooms-info" class="text-gray-500 dark:text-gray-400 mb-4">Lokasyon • Tarih</p>
      <div class="flex items-center gap-6 mb-8">
       <div class="flex items-center gap-2">
-       <div class="w-4 h-4 bg-[#30C48D] rounded-full"></div><span class="text-sm text-gray-600" data-i18n="available">Müsait</span>
+       <div class="w-4 h-4 bg-[#30C48D] rounded-full"></div><span class="text-sm text-gray-600 dark:text-gray-400" data-i18n="available">Müsait</span>
       </div>
       <div class="flex items-center gap-2">
-       <div class="w-4 h-4 bg-[#FF4B5C] rounded-full"></div><span class="text-sm text-gray-600" data-i18n="occupied">Dolu</span>
+       <div class="w-4 h-4 bg-[#FF4B5C] rounded-full"></div><span class="text-sm text-gray-600 dark:text-gray-400" data-i18n="occupied">Dolu</span>
       </div>
      </div>
      <div id="rooms-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
     </div>
    </div><!-- Screen 8: Payment -->
-   <div id="screen-payment" class="screen h-full w-full hidden overflow-auto">
-    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('rooms')" class="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6"> <span>←</span> <span data-i18n="back_room">Oda Seçimine Dön</span> </button>
-     <h1 class="font-heading text-2xl font-bold text-gray-800 mb-2" data-i18n="reservation_payment">Rezervasyon &amp; Ödeme</h1>
-     <p class="text-gray-500 mb-8" data-i18n="final_step">Son adım - Ödeme bilgilerinizi girin</p>
+   <div id="screen-payment" class="screen h-full w-full hidden overflow-auto dark:bg-gray-900">
+    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('rooms')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_room">Oda Seçimine Dön</span> </button>
+     <h1 class="font-heading text-2xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="reservation_payment">Rezervasyon &amp; Ödeme</h1>
+     <p class="text-gray-500 dark:text-gray-400 mb-8" data-i18n="final_step">Son adım - Ödeme bilgilerinizi girin</p>
      <div class="grid md:grid-cols-2 gap-6">
-      <div class="bg-white rounded-3xl shadow-xl p-6">
-       <h3 class="font-heading font-bold text-gray-800 mb-4" data-i18n="reservation_summary">Rezervasyon Özeti</h3>
+      <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6">
+       <h3 class="font-heading font-bold text-gray-800 dark:text-white mb-4" data-i18n="reservation_summary">Rezervasyon Özeti</h3>
        <div class="space-y-4">
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl"><span class="text-gray-600" data-i18n="room">Oda</span> <span id="summary-room" class="font-medium">#-</span>
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"><span class="text-gray-600 dark:text-gray-400" data-i18n="room">Oda</span> <span id="summary-room" class="font-medium dark:text-white">#-</span>
         </div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl"><span class="text-gray-600" data-i18n="location">Lokasyon</span> <span id="summary-location" class="font-medium">-</span>
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"><span class="text-gray-600 dark:text-gray-400" data-i18n="location">Lokasyon</span> <span id="summary-location" class="font-medium dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl"><span class="text-gray-600" data-i18n="checkin">Giriş</span> <span id="summary-checkin" class="font-medium">-</span>
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"><span class="text-gray-600 dark:text-gray-400" data-i18n="checkin">Giriş</span> <span id="summary-checkin" class="font-medium dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl"><span class="text-gray-600" data-i18n="checkout">Çıkış</span> <span id="summary-checkout" class="font-medium">-</span>
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"><span class="text-gray-600 dark:text-gray-400" data-i18n="checkout">Çıkış</span> <span id="summary-checkout" class="font-medium dark:text-white">-</span>
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="guest_count">Kişi Sayısı</label> <select id="guests" onchange="updatePrice()" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white"> <option value="1">1 Kişi</option> <option value="2" selected>2 Kişi</option> <option value="3">3 Kişi</option> <option value="4">4 Kişi</option> </select>
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="guest_count">Kişi Sayısı</label> <select id="guests" onchange="updatePrice()" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white"> <option value="1" data-i18n-guest="1">1 Kişi</option> <option value="2" selected data-i18n-guest="2">2 Kişi</option> <option value="3" data-i18n-guest="3">3 Kişi</option> <option value="4" data-i18n-guest="4">4 Kişi</option> </select>
         </div>
        </div>
-       <div class="mt-6 p-4 bg-[#4F8EF7]/5 rounded-xl">
-        <div class="flex items-center justify-between mb-2"><span class="text-gray-600"><span id="price-hours">0</span> <span data-i18n="hours">saat</span> x ₺50</span> <span id="price-base" class="font-medium">₺0</span>
+       <div class="mt-6 p-4 bg-[#4F8EF7]/5 dark:bg-[#4F8EF7]/10 rounded-xl">
+        <div class="flex items-center justify-between mb-2"><span class="text-gray-600 dark:text-gray-400"><span id="price-hours">0</span> <span data-i18n="hour_unit">saat</span> x ₺50</span> <span id="price-base" class="font-medium dark:text-white">₺0</span>
         </div>
-        <div id="price-extra-row" class="flex items-center justify-between mb-2 hidden"><span class="text-gray-600"><span data-i18n="extra_person">Ek kişi</span></span> <span id="price-extra" class="font-medium">₺0</span>
+        <div id="price-extra-row" class="flex items-center justify-between mb-2 hidden"><span class="text-gray-600 dark:text-gray-400"><span data-i18n="extra_person">Ek kişi</span></span> <span id="price-extra" class="font-medium dark:text-white">₺0</span>
         </div>
         <div class="border-t border-[#4F8EF7]/20 my-3"></div>
-        <div class="flex items-center justify-between"><span class="font-bold text-gray-800" data-i18n="total">Toplam</span> <span id="price-total" class="font-bold text-xl text-[#4F8EF7]">₺0</span>
+        <div class="flex items-center justify-between"><span class="font-bold text-gray-800 dark:text-white" data-i18n="total">Toplam</span> <span id="price-total" class="font-bold text-xl text-[#4F8EF7]">₺0</span>
         </div>
        </div>
       </div>
-      <div class="bg-white rounded-3xl shadow-xl p-6">
-       <h3 class="font-heading font-bold text-gray-800 mb-4">💳 <span data-i18n="card_info">Kart Bilgileri</span></h3>
-       <p class="text-xs text-gray-400 mb-4 p-2 bg-yellow-50 rounded-lg">⚠️ <span data-i18n="demo_warning">Demo amaçlı - Gerçek ödeme yapılmaz</span></p>
+      <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6">
+       <h3 class="font-heading font-bold text-gray-800 dark:text-white mb-4">💳 <span data-i18n="card_info">Kart Bilgileri</span></h3>
+       <p class="text-xs text-gray-400 mb-4 p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">⚠️ <span data-i18n="demo_warning">Demo amaçlı - Gerçek ödeme yapılmaz</span></p>
        <form id="payment-form" onsubmit="handlePayment(event)" class="space-y-4">
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="card_name">Kart Üzerindeki İsim</label> <input type="text" id="card-name" placeholder="AD SOYAD" required class="w-full px-4 py-3 rounded-xl border border-gray-200 uppercase">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="card_name">Kart Üzerindeki İsim</label> <input type="text" id="card-name" placeholder="AD SOYAD" required class="w-full px-4 py-3 rounded-xl border border-gray-200 uppercase">
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="card_number">Kart Numarası</label> <input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="card_number">Kart Numarası</label> <input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
         </div>
         <div class="grid grid-cols-2 gap-4">
-         <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="expiry_date">Son Kullanma</label> <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="expiry_date">Son Kullanma</label> <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
          </div>
-         <div><label class="block text-sm font-medium text-gray-700 mb-2">CVV</label> <input type="text" id="card-cvv" placeholder="123" maxlength="3" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">CVV</label> <input type="text" id="card-cvv" placeholder="123" maxlength="3" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
          </div>
         </div><button type="submit" id="pay-btn" class="w-full py-4 bg-[#30C48D] text-white font-semibold rounded-xl mt-4"> <span id="pay-btn-text">₺0 <span data-i18n="complete_payment">Ödemeyi Tamamla</span></span> </button>
        </form>
@@ -373,32 +389,32 @@
      </div>
     </div>
    </div><!-- Screen 9: Ticket -->
-   <div id="screen-ticket" class="screen h-full w-full hidden overflow-auto bg-gradient-to-br from-[#4F8EF7]/5 to-[#30C48D]/5">
-    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-md mx-auto"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6"> <span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span> </button>
-     <div class="bg-white rounded-3xl shadow-2xl overflow-hidden">
+   <div id="screen-ticket" class="screen h-full w-full hidden overflow-auto bg-gradient-to-br from-[#4F8EF7]/5 to-[#30C48D]/5 dark:from-gray-900 dark:to-gray-800">
+    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-md mx-auto"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span> </button>
+     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden">
       <div class="bg-gradient-to-r from-[#4F8EF7] to-[#30C48D] p-6 text-white text-center"><span class="text-4xl mb-3 block">🎫</span>
        <h2 class="font-heading text-2xl font-bold" data-i18n="entry_ticket">Giriş Biletiniz</h2>
        <p class="text-white/80 text-sm" data-i18n="show_qr">Bu QR kodu kapıda gösterin</p>
       </div>
-      <div class="p-8 flex justify-center ticket-edge">
-       <div class="w-48 h-48 bg-white border-4 border-gray-100 rounded-2xl flex items-center justify-center">
+      <div class="p-8 flex justify-center ticket-edge dark:before:bg-gray-900 dark:after:bg-gray-900">
+       <div class="w-48 h-48 bg-white dark:bg-gray-700 border-4 border-gray-100 dark:border-gray-600 rounded-2xl flex items-center justify-center">
         <svg viewbox="0 0 100 100" class="w-40 h-40"><rect fill="#000" x="10" y="10" width="25" height="25" /><rect fill="#000" x="65" y="10" width="25" height="25" /> <rect fill="#000" x="10" y="65" width="25" height="25" /><rect fill="#fff" x="15" y="15" width="15" height="15" /> <rect fill="#fff" x="70" y="15" width="15" height="15" /><rect fill="#fff" x="15" y="70" width="15" height="15" /> <rect fill="#000" x="18" y="18" width="9" height="9" /><rect fill="#000" x="73" y="18" width="9" height="9" /> <rect fill="#000" x="18" y="73" width="9" height="9" /><rect fill="#000" x="40" y="40" width="20" height="20" /> <rect fill="#fff" x="45" y="45" width="10" height="10" /><rect fill="#000" x="65" y="65" width="25" height="25" /> <rect fill="#fff" x="70" y="70" width="15" height="15" /><rect fill="#000" x="73" y="73" width="9" height="9" />
         </svg>
        </div>
       </div>
       <div class="px-6 pb-6">
-       <div class="border-t-2 border-dashed border-gray-200 pt-6 space-y-3">
-        <div class="flex items-center justify-between"><span class="text-gray-500" data-i18n="ticket_no">Bilet No</span> <span id="ticket-number" class="font-mono font-bold text-gray-800">#TKT-0000</span>
+       <div class="border-t-2 border-dashed border-gray-200 dark:border-gray-600 pt-6 space-y-3">
+        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="ticket_no">Bilet No</span> <span id="ticket-number" class="font-mono font-bold text-gray-800 dark:text-white">#TKT-0000</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500" data-i18n="room">Oda</span> <span id="ticket-room" class="font-bold text-gray-800">#-</span>
+        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="room">Oda</span> <span id="ticket-room" class="font-bold text-gray-800 dark:text-white">#-</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500" data-i18n="location">Lokasyon</span> <span id="ticket-location" class="font-medium text-gray-800">-</span>
+        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="location">Lokasyon</span> <span id="ticket-location" class="font-medium text-gray-800 dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500" data-i18n="checkin">Giriş</span> <span id="ticket-checkin" class="font-medium text-gray-800">-</span>
+        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="checkin">Giriş</span> <span id="ticket-checkin" class="font-medium text-gray-800 dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500" data-i18n="checkout">Çıkış</span> <span id="ticket-checkout" class="font-medium text-gray-800">-</span>
+        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="checkout">Çıkış</span> <span id="ticket-checkout" class="font-medium text-gray-800 dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500" data-i18n="guest_count">Kişi</span> <span id="ticket-guests" class="font-medium text-gray-800">-</span>
+        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="guest_count">Kişi</span> <span id="ticket-guests" class="font-medium text-gray-800 dark:text-white">-</span>
         </div>
        </div><button onclick="showScreen('room-control')" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-xl mt-6"> 🎮 <span data-i18n="go_to_control">Oda Kontrol Paneline Git</span> </button>
       </div>
@@ -533,9 +549,12 @@
         no_reservation_desc: 'Hemen yeni bir rezervasyon oluşturun.',
         total_stays: 'Toplam Konaklama',
         hours: 'Saat',
+        hour_unit: 'saat',
         avg_rating: 'Puan Ortalaması',
         membership_level: 'Üyelik Seviyesi',
         starter: 'Başlangıç',
+        silver: 'Gümüş',
+        gold: 'Altın',
         full_name: 'Ad Soyad',
         back_dashboard: "Dashboard'a Dön",
         select_location: 'Konaklama Noktası Seçin',
@@ -561,6 +580,10 @@
         checkout: 'Çıkış',
         guest_count: 'Kişi Sayısı',
         person: 'Kişi',
+        person_1: '1 Kişi',
+        person_2: '2 Kişi',
+        person_3: '3 Kişi',
+        person_4: '4 Kişi',
         extra_person: 'Ek kişi',
         total: 'Toplam',
         card_info: 'Kart Bilgileri',
@@ -678,9 +701,12 @@
         no_reservation_desc: 'Create a new reservation now.',
         total_stays: 'Total Stays',
         hours: 'Hours',
+        hour_unit: 'hours',
         avg_rating: 'Average Rating',
         membership_level: 'Membership Level',
         starter: 'Starter',
+        silver: 'Silver',
+        gold: 'Gold',
         full_name: 'Full Name',
         back_dashboard: 'Back to Dashboard',
         select_location: 'Select Location',
@@ -706,6 +732,10 @@
         checkout: 'Check-out',
         guest_count: 'Number of Guests',
         person: 'Person',
+        person_1: '1 Person',
+        person_2: '2 People',
+        person_3: '3 People',
+        person_4: '4 People',
         extra_person: 'Extra person',
         total: 'Total',
         card_info: 'Card Information',
@@ -823,9 +853,12 @@
         no_reservation_desc: 'Erstellen Sie jetzt eine neue Reservierung.',
         total_stays: 'Gesamtaufenthalte',
         hours: 'Stunden',
+        hour_unit: 'Stunden',
         avg_rating: 'Durchschnittsbewertung',
         membership_level: 'Mitgliedschaftsstufe',
         starter: 'Einsteiger',
+        silver: 'Silber',
+        gold: 'Gold',
         full_name: 'Vollständiger Name',
         back_dashboard: 'Zurück zum Dashboard',
         select_location: 'Standort auswählen',
@@ -851,6 +884,10 @@
         checkout: 'Check-out',
         guest_count: 'Anzahl der Gäste',
         person: 'Person',
+        person_1: '1 Person',
+        person_2: '2 Personen',
+        person_3: '3 Personen',
+        person_4: '4 Personen',
         extra_person: 'Zusätzliche Person',
         total: 'Gesamt',
         card_info: 'Karteninformationen',
@@ -917,6 +954,27 @@
     };
 
     let currentLang = localStorage.getItem('smartHome_lang') || 'tr';
+    let isDarkMode = localStorage.getItem('smartHome_darkMode') === 'true';
+
+    // ==================== DARK MODE ====================
+    function toggleDarkMode() {
+      isDarkMode = !isDarkMode;
+      localStorage.setItem('smartHome_darkMode', isDarkMode);
+      applyDarkMode();
+    }
+    
+    function applyDarkMode() {
+      const html = document.documentElement;
+      const themeIcon = document.getElementById('theme-icon');
+      
+      if (isDarkMode) {
+        html.classList.add('dark');
+        if (themeIcon) themeIcon.textContent = '☀️';
+      } else {
+        html.classList.remove('dark');
+        if (themeIcon) themeIcon.textContent = '🌙';
+      }
+    }
     
     function t(key) { return translations[currentLang][key] || translations['tr'][key] || key; }
     
@@ -931,8 +989,17 @@
     }
     
     function updateAllTranslations() {
+      // Normal text çevirileri
       document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+      // Placeholder çevirileri
       document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+      // Select option çevirileri
+      document.querySelectorAll('[data-i18n-opt]').forEach(opt => { opt.textContent = t(opt.dataset.i18nOpt); });
+      // Kişi sayısı çevirileri
+      document.querySelectorAll('[data-i18n-guest]').forEach(opt => {
+        opt.textContent = t('person_' + opt.dataset.i18nGuest);
+      });
+      
       document.title = t('app_title');
       
       const stepLabel = document.getElementById('step-label');
@@ -949,10 +1016,25 @@
         const welcomeTitle = document.getElementById('welcome-title');
         if (welcomeTitle) welcomeTitle.textContent = `${user.name}, ${t('home')}! 👋`;
       }
+      
+      // Üyelik seviyesi çevirisi
+      updateMembershipLevel();
+    }
+    
+    function updateMembershipLevel() {
+      const user = getCurrentUser();
+      if (!user) return;
+      const reservations = getUserReservations(user.tc);
+      const statLevel = document.getElementById('stat-level');
+      if (statLevel) {
+        if (reservations.length >= 10) statLevel.textContent = t('gold');
+        else if (reservations.length >= 5) statLevel.textContent = t('silver');
+        else statLevel.textContent = t('starter');
+      }
     }
 
     // ==================== STATE ====================
-    const defaultConfig = { app_title: 'Akıllı Ev Kiralama Sistemi', welcome_subtitle: 'Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi' };
+    const defaultConfig = { app_title: 'Akıllı Ev Kiralama Sistemi', welcome_subtitle: 'Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi', logo_url: '' };
     let currentBooking = { locationId: null, locationName: null, checkin: null, checkout: null, room: null, guests: 2, price: 0, hours: 0 };
     let currentStep = 1;
 
@@ -1106,7 +1188,7 @@
       const reservations = getUserReservations(user.tc);
       document.getElementById('stat-total').textContent = reservations.length;
       document.getElementById('stat-hours').textContent = reservations.reduce((sum, r) => sum + (r.hours || 0), 0);
-      document.getElementById('stat-level').textContent = reservations.length >= 10 ? 'Gold' : reservations.length >= 5 ? 'Silver' : t('starter');
+      updateMembershipLevel();
     }
 
     function showDashboardSection(sectionId) {
@@ -1163,8 +1245,8 @@
       for (let i = 1; i <= 12; i++) {
         const isOcc = occupied.includes(i);
         grid.innerHTML += isOcc
-          ? `<div class="room-card disabled bg-white rounded-2xl p-4 shadow-lg text-center border-2 border-[#FF4B5C]/20"><div class="w-14 h-14 bg-[#FF4B5C]/10 rounded-xl flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🏠</span></div><p class="font-bold text-gray-400">${t('room')} #${i}</p><span class="text-xs px-2 py-1 bg-[#FF4B5C]/10 text-[#FF4B5C] rounded-full">${t('occupied')}</span></div>`
-          : `<button onclick="selectRoom(${i})" class="room-card bg-white rounded-2xl p-4 shadow-lg text-center border-2 border-transparent hover:border-[#30C48D]"><div class="w-14 h-14 bg-[#30C48D]/10 rounded-xl flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🏠</span></div><p class="font-bold text-gray-800">${t('room')} #${i}</p><span class="text-xs px-2 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full">${t('available')}</span></button>`;
+          ? `<div class="room-card disabled bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg text-center border-2 border-[#FF4B5C]/20"><div class="w-14 h-14 bg-[#FF4B5C]/10 rounded-xl flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🏠</span></div><p class="font-bold text-gray-400">${t('room')} #${i}</p><span class="text-xs px-2 py-1 bg-[#FF4B5C]/10 text-[#FF4B5C] rounded-full">${t('occupied')}</span></div>`
+          : `<button onclick="selectRoom(${i})" class="room-card bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg text-center border-2 border-transparent hover:border-[#30C48D]"><div class="w-14 h-14 bg-[#30C48D]/10 rounded-xl flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🏠</span></div><p class="font-bold text-gray-800 dark:text-white">${t('room')} #${i}</p><span class="text-xs px-2 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full">${t('available')}</span></button>`;
       }
     }
 
@@ -1235,27 +1317,17 @@
       let reservations = getUserReservations(user.tc);
       const now = new Date();
       
-      // Durumları güncelle
       reservations = reservations.map(res => {
         if (res.status !== 'cancelled') {
           const checkoutDate = new Date(res.checkout);
-          if (checkoutDate < now) {
-            res.status = 'completed';
-          } else {
-            res.status = 'active';
-          }
+          if (checkoutDate < now) res.status = 'completed';
+          else res.status = 'active';
         }
         return res;
       });
       
-      // Filtreleme
-      if (currentFilter !== 'all') {
-        reservations = reservations.filter(r => r.status === currentFilter);
-      }
-      
-      // Tarihe göre sırala (en yeni en üstte)
+      if (currentFilter !== 'all') reservations = reservations.filter(r => r.status === currentFilter);
       reservations.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      
       renderReservations(reservations);
     }
     
@@ -1272,50 +1344,31 @@
       noReservationsDiv.classList.add('hidden');
       
       listContainer.innerHTML = reservations.map(res => {
-        const statusColors = {
-          active: 'bg-[#30C48D]/10 text-[#30C48D]',
-          completed: 'bg-[#4F8EF7]/10 text-[#4F8EF7]',
-          cancelled: 'bg-[#FF4B5C]/10 text-[#FF4B5C]'
-        };
-        const statusTexts = {
-          active: t('status_active'),
-          completed: t('status_completed'),
-          cancelled: t('status_cancelled')
-        };
-        
+        const statusColors = { active: 'bg-[#30C48D]/10 text-[#30C48D]', completed: 'bg-[#4F8EF7]/10 text-[#4F8EF7]', cancelled: 'bg-[#FF4B5C]/10 text-[#FF4B5C]' };
+        const statusTexts = { active: t('status_active'), completed: t('status_completed'), cancelled: t('status_cancelled') };
         const isActive = res.status === 'active';
         const checkinDate = new Date(res.checkin);
         const canCancel = isActive && checkinDate > new Date();
         
         return `
-          <div class="bg-white rounded-2xl shadow-lg p-5 border-l-4 ${res.status === 'active' ? 'border-[#30C48D]' : res.status === 'completed' ? 'border-[#4F8EF7]' : 'border-[#FF4B5C]'}">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border-l-4 ${res.status === 'active' ? 'border-[#30C48D]' : res.status === 'completed' ? 'border-[#4F8EF7]' : 'border-[#FF4B5C]'}">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div class="flex items-start gap-4">
-                <div class="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span class="text-2xl">${res.status === 'cancelled' ? '❌' : '🏠'}</span>
-                </div>
+                <div class="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center flex-shrink-0"><span class="text-2xl">${res.status === 'cancelled' ? '❌' : '🏠'}</span></div>
                 <div>
                   <div class="flex items-center gap-3 mb-1">
-                    <h3 class="font-heading font-bold text-gray-800">${res.locationName}</h3>
+                    <h3 class="font-heading font-bold text-gray-800 dark:text-white">${res.locationName}</h3>
                     <span class="px-2 py-1 ${statusColors[res.status]} rounded-full text-xs font-medium">${statusTexts[res.status]}</span>
                   </div>
-                  <p class="text-gray-600 text-sm">${t('room')} #${res.room} • ${res.guests} ${t('person')}</p>
-                  <p class="text-gray-500 text-sm mt-1">📅 ${formatDateTime(res.checkin)} → ${formatDateTime(res.checkout)}</p>
-                  <p class="text-gray-400 text-xs mt-1">${t('ticket_no')}: #${res.id}</p>
+                  <p class="text-gray-600 dark:text-gray-400 text-sm">${t('room')} #${res.room} • ${res.guests} ${t('person')}</p>
+                  <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">📅 ${formatDateTime(res.checkin)} → ${formatDateTime(res.checkout)}</p>
+                  <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">${t('ticket_no')}: #${res.id}</p>
                 </div>
               </div>
               <div class="flex items-center gap-2 ml-auto">
-                <span class="font-bold text-lg text-gray-800">₺${res.price}</span>
-                ${isActive ? `
-                  <button onclick="viewReservationTicket('${res.id}')" class="px-4 py-2 bg-[#4F8EF7] text-white rounded-xl text-sm font-medium hover:bg-[#3D7CE5]">
-                    🎫 ${t('view_ticket')}
-                  </button>
-                ` : ''}
-                ${canCancel ? `
-                  <button onclick="showCancelConfirm('${res.id}')" class="px-4 py-2 bg-[#FF4B5C]/10 text-[#FF4B5C] rounded-xl text-sm font-medium hover:bg-[#FF4B5C]/20">
-                    ❌ ${t('cancel_reservation')}
-                  </button>
-                ` : ''}
+                <span class="font-bold text-lg text-gray-800 dark:text-white">₺${res.price}</span>
+                ${isActive ? `<button onclick="viewReservationTicket('${res.id}')" class="px-4 py-2 bg-[#4F8EF7] text-white rounded-xl text-sm font-medium hover:bg-[#3D7CE5]">🎫 ${t('view_ticket')}</button>` : ''}
+                ${canCancel ? `<button onclick="showCancelConfirm('${res.id}')" class="px-4 py-2 bg-[#FF4B5C]/10 text-[#FF4B5C] rounded-xl text-sm font-medium hover:bg-[#FF4B5C]/20">❌ ${t('cancel_reservation')}</button>` : ''}
               </div>
             </div>
           </div>
@@ -1325,28 +1378,18 @@
     
     function filterReservations(filter) {
       currentFilter = filter;
-      
-      // Aktif butonu güncelle
       document.querySelectorAll('.filter-btn').forEach(btn => {
-        if (btn.dataset.filter === filter) {
-          btn.classList.remove('bg-white', 'text-gray-600');
-          btn.classList.add('bg-[#4F8EF7]', 'text-white');
-        } else {
-          btn.classList.remove('bg-[#4F8EF7]', 'text-white');
-          btn.classList.add('bg-white', 'text-gray-600');
-        }
+        if (btn.dataset.filter === filter) { btn.classList.remove('bg-white', 'text-gray-600'); btn.classList.add('bg-[#4F8EF7]', 'text-white'); }
+        else { btn.classList.remove('bg-[#4F8EF7]', 'text-white'); btn.classList.add('bg-white', 'text-gray-600'); }
       });
-      
       loadReservations();
     }
     
     function viewReservationTicket(resId) {
       const user = getCurrentUser();
       if (!user) return;
-      
       const reservations = JSON.parse(localStorage.getItem('smartHome_reservations') || '[]');
       const res = reservations.find(r => r.id === resId);
-      
       if (res) {
         document.getElementById('ticket-number').textContent = '#' + res.id;
         document.getElementById('ticket-room').textContent = '#' + res.room;
@@ -1360,55 +1403,36 @@
     }
     
     function showCancelConfirm(resId) {
-      // İptal onay modalı göster
       const modal = document.createElement('div');
       modal.id = 'cancel-modal';
       modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4';
       modal.innerHTML = `
-        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
           <div class="text-center mb-6">
-            <div class="w-16 h-16 bg-[#FF4B5C]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span class="text-3xl">⚠️</span>
-            </div>
-            <h3 class="font-heading text-xl font-bold text-gray-800 mb-2">${t('cancel_confirm_title')}</h3>
-            <p class="text-gray-500">${t('cancel_confirm_msg')}</p>
+            <div class="w-16 h-16 bg-[#FF4B5C]/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-3xl">⚠️</span></div>
+            <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-2">${t('cancel_confirm_title')}</h3>
+            <p class="text-gray-500 dark:text-gray-400">${t('cancel_confirm_msg')}</p>
           </div>
           <div class="flex gap-3">
-            <button onclick="closeCancelModal()" class="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
-              ${t('no_go_back')}
-            </button>
-            <button onclick="cancelReservation('${resId}')" class="flex-1 py-3 bg-[#FF4B5C] text-white font-semibold rounded-xl hover:bg-[#E63E4C]">
-              ${t('yes_cancel')}
-            </button>
+            <button onclick="closeCancelModal()" class="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600">${t('no_go_back')}</button>
+            <button onclick="cancelReservation('${resId}')" class="flex-1 py-3 bg-[#FF4B5C] text-white font-semibold rounded-xl hover:bg-[#E63E4C]">${t('yes_cancel')}</button>
           </div>
         </div>
       `;
       document.body.appendChild(modal);
     }
     
-    function closeCancelModal() {
-      const modal = document.getElementById('cancel-modal');
-      if (modal) modal.remove();
-    }
+    function closeCancelModal() { const modal = document.getElementById('cancel-modal'); if (modal) modal.remove(); }
     
     function cancelReservation(resId) {
       const reservations = JSON.parse(localStorage.getItem('smartHome_reservations') || '[]');
       const resIndex = reservations.findIndex(r => r.id === resId);
-      
       if (resIndex !== -1) {
         const res = reservations[resIndex];
-        const checkinDate = new Date(res.checkin);
-        
-        if (checkinDate <= new Date()) {
-          showToast(t('cannot_cancel_past'), 'error');
-          closeCancelModal();
-          return;
-        }
-        
+        if (new Date(res.checkin) <= new Date()) { showToast(t('cannot_cancel_past'), 'error'); closeCancelModal(); return; }
         reservations[resIndex].status = 'cancelled';
         reservations[resIndex].cancelledAt = new Date().toISOString();
         localStorage.setItem('smartHome_reservations', JSON.stringify(reservations));
-        
         showToast(t('reservation_cancelled'), 'info');
         closeCancelModal();
         loadReservations();
@@ -1441,6 +1465,23 @@
       return date.toLocaleDateString(locales[currentLang] || 'tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
     }
 
+    // ==================== LOGO ====================
+    function updateLogo(logoUrl) {
+      const customLogo = document.getElementById('custom-logo');
+      const defaultIcon = document.getElementById('default-logo-icon');
+      
+      if (logoUrl && logoUrl.trim() !== '') {
+        customLogo.src = logoUrl;
+        customLogo.classList.remove('hidden');
+        customLogo.style.display = 'block';
+        defaultIcon.style.display = 'none';
+      } else {
+        customLogo.classList.add('hidden');
+        customLogo.style.display = 'none';
+        defaultIcon.style.display = 'block';
+      }
+    }
+
     // ==================== ELEMENT SDK ====================
     if (window.elementSdk) {
       window.elementSdk.init({
@@ -1448,16 +1489,27 @@
         onConfigChange: async (config) => {
           const title = document.getElementById('main-title');
           const subtitle = document.getElementById('main-subtitle');
+          
           if (title) title.textContent = config.app_title || defaultConfig.app_title;
           if (subtitle) subtitle.textContent = config.welcome_subtitle || defaultConfig.welcome_subtitle;
+          
+          // Logo güncelleme
+          updateLogo(config.logo_url || defaultConfig.logo_url);
         },
         mapToCapabilities: () => ({ recolorables: [], borderables: [], fontEditable: undefined, fontSizeable: undefined }),
-        mapToEditPanelValues: (config) => new Map([['app_title', config.app_title || defaultConfig.app_title], ['welcome_subtitle', config.welcome_subtitle || defaultConfig.welcome_subtitle]])
+        mapToEditPanelValues: (config) => new Map([
+          ['app_title', config.app_title || defaultConfig.app_title],
+          ['welcome_subtitle', config.welcome_subtitle || defaultConfig.welcome_subtitle],
+          ['logo_url', config.logo_url || defaultConfig.logo_url]
+        ])
       });
     }
 
     // ==================== INIT ====================
     function init() {
+      // Dark mode başlat
+      applyDarkMode();
+      
       document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.lang === currentLang));
       updateAllTranslations();
       
@@ -1479,5 +1531,5 @@
 
     init();
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9af8f948e366ee7c',t:'MTc2NjAwMTI4MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9af942c0416ed5ef',t:'MTc2NjAwNDI5MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
