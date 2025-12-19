@@ -12,6 +12,8 @@
     }
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="/_sdk/element_sdk.js"></script>
   <style>
     body { box-sizing: border-box; }
@@ -48,27 +50,186 @@
     .lang-btn { transition: all 0.2s ease; }
     .lang-btn:hover { transform: scale(1.05); }
     .lang-btn.active { box-shadow: 0 0 0 2px #4F8EF7; }
-    
-    /* Dark Mode Transitions */
-    .dark-transition { transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
-    
-    /* Dark Mode Overrides */
     .dark .glass-card { background: rgba(31, 41, 55, 0.95); }
     .dark input, .dark select, .dark textarea { background-color: #374151 !important; border-color: #4B5563 !important; color: #F9FAFB !important; }
     .dark input::placeholder { color: #9CA3AF !important; }
     .dark .room-card:not(.disabled) { background-color: #1F2937; }
     .dark .room-card.disabled { background-color: #111827; }
     .dark .filter-btn.bg-white { background-color: #374151 !important; }
+    .leaflet-map-container { width: 100%; height: 400px; border-radius: 16px; overflow: hidden; z-index: 1; }
+    .dark .leaflet-map-container { filter: brightness(0.85) saturate(1.2); }
+    .leaflet-container { background: #E8F4FD; }
+    .dark .leaflet-container { background: #1F2937; }
+    .custom-marker { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #4F8EF7, #30C48D); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 4px 15px rgba(79, 142, 247, 0.5); border: 3px solid white; cursor: pointer; transition: all 0.3s ease; }
+    .custom-marker:hover { transform: rotate(-45deg) scale(1.15); box-shadow: 0 6px 20px rgba(79, 142, 247, 0.6); }
+    .custom-marker.selected { background: linear-gradient(135deg, #30C48D, #28B07D); transform: rotate(-45deg) scale(1.2); box-shadow: 0 6px 25px rgba(48, 196, 141, 0.6); }
+    .custom-marker span { transform: rotate(45deg); font-size: 18px; }
+    .leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+    .dark .leaflet-popup-content-wrapper { background: #374151; }
+    .leaflet-popup-content { margin: 0; min-width: 180px; }
+    .leaflet-popup-tip { background: white; }
+    .dark .leaflet-popup-tip { background: #374151; }
+    .popup-content { padding: 12px 16px; text-align: center; }
+    .popup-content h4 { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; color: #1F2937; margin-bottom: 4px; }
+    .dark .popup-content h4 { color: #F9FAFB; }
+    .popup-content p { font-size: 12px; color: #6B7280; margin-bottom: 8px; }
+    .dark .popup-content p { color: #9CA3AF; }
+    .popup-btn { display: inline-block; padding: 6px 14px; background: linear-gradient(135deg, #4F8EF7, #30C48D); color: white; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; border: none; }
+    .popup-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(79, 142, 247, 0.4); }
+    .leaflet-control-zoom { border: none !important; border-radius: 12px !important; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important; }
+    .leaflet-control-zoom a { width: 36px !important; height: 36px !important; line-height: 36px !important; font-size: 18px !important; color: #4F8EF7 !important; background: white !important; border: none !important; }
+    .dark .leaflet-control-zoom a { background: #374151 !important; color: #60A5FA !important; }
+    .leaflet-control-zoom a:hover { background: #F3F4F6 !important; }
+    .dark .leaflet-control-zoom a:hover { background: #4B5563 !important; }
+    @keyframes marker-pulse { 0%, 100% { box-shadow: 0 4px 15px rgba(79, 142, 247, 0.5); } 50% { box-shadow: 0 4px 25px rgba(79, 142, 247, 0.8); } }
+    .custom-marker.selected { animation: marker-pulse 1.5s ease-in-out infinite; }
+    .location-card { transition: all 0.3s ease; border: 2px solid transparent; }
+    .location-card:hover { border-color: #4F8EF7; transform: translateY(-3px); }
+    .location-card.selected { border-color: #30C48D; background: linear-gradient(135deg, rgba(48, 196, 141, 0.1), rgba(79, 142, 247, 0.1)); }
+    .cancel-modal { animation: modal-in 0.3s ease-out; }
+    @keyframes modal-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
   </style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
  </head>
- <body class="h-full bg-[#F5F7FA] dark:bg-gray-900 overflow-auto dark-transition">
+ <body class="h-full bg-[#F5F7FA] dark:bg-gray-900 overflow-auto">
   <div id="app" class="h-full w-full"><!-- Toast Container -->
-   <div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div><!-- Language & Theme Selector - Fixed Top Right on All Pages -->
-   <div class="fixed top-4 right-4 z-[200] flex gap-2"><button onclick="toggleDarkMode()" id="theme-toggle" class="theme-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl transition-all" title="Dark Mode"> <span id="theme-icon">🌙</span> </button> <button onclick="setLanguage('tr')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="tr" title="Türkçe">🇹🇷</button> <button onclick="setLanguage('en')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="en" title="English">🇬🇧</button> <button onclick="setLanguage('de')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl" data-lang="de" title="Deutsch">🇩🇪</button>
+   <div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div><!-- Terms Modal -->
+   <div id="terms-modal" class="fixed inset-0 bg-black/50 z-[150] hidden items-center justify-center p-4 overflow-auto">
+    <div class="cancel-modal bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl max-h-[90%] overflow-auto my-4">
+     <div class="flex items-center justify-between mb-4">
+      <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white" data-i18n="terms_of_use">Kullanım Şartları</h3><button onclick="closeTermsModal()" class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600"> <span class="text-xl">✕</span> </button>
+     </div>
+     <div class="prose dark:prose-invert text-sm text-gray-600 dark:text-gray-300 space-y-4 max-h-[60vh] overflow-auto pr-2">
+      <p class="font-semibold text-gray-800 dark:text-white">SmartStay Akıllı Ev Kiralama Hizmet Kullanım Şartları</p>
+      <p><strong>Son Güncelleme:</strong> 01 Ocak 2025</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">1. Hizmetin Tanımı</h4>
+      <p>SmartStay, kullanıcılara kısa süreli akıllı ev konaklama hizmeti sunan bir platformdur. Bu hizmet, mobil uygulama ve web sitesi üzerinden rezervasyon yapma, ödeme işleme ve akıllı oda kontrolü özelliklerini içerir.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">2. Üyelik Koşulları</h4>
+      <p>2.1. Hizmeti kullanabilmek için 18 yaşını doldurmuş olmanız gerekmektedir.</p>
+      <p>2.2. Kayıt sırasında verilen bilgilerin doğru ve güncel olması zorunludur.</p>
+      <p>2.3. Her kullanıcı yalnızca bir hesap açabilir.</p>
+      <p>2.4. Hesap bilgilerinizin güvenliğinden siz sorumlusunuz.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">3. Rezervasyon ve İptal Politikası</h4>
+      <p>3.1. Rezervasyonlar, müsaitlik durumuna göre onaylanır.</p>
+      <p>3.2. Giriş saatinden en az 2 saat önce yapılan iptallerde tam iade yapılır.</p>
+      <p>3.3. 2 saatten az sürede yapılan iptallerde %50 kesinti uygulanır.</p>
+      <p>3.4. Giriş saatinden sonra yapılan iptallerde iade yapılmaz.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">4. Ödeme Koşulları</h4>
+      <p>4.1. Tüm ödemeler rezervasyon sırasında alınır.</p>
+      <p>4.2. Kabul edilen ödeme yöntemleri: Kredi kartı, banka kartı.</p>
+      <p>4.3. Fiyatlar KDV dahildir.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">5. Kullanıcı Sorumlulukları</h4>
+      <p>5.1. Konaklama süresince odaya ve demirbaşlara zarar vermemeyi kabul edersiniz.</p>
+      <p>5.2. Oda kapasitesini aşan kişi sayısıyla konaklama yapılamaz.</p>
+      <p>5.3. Yasadışı faaliyetler kesinlikle yasaktır.</p>
+      <p>5.4. Gürültü ve komşu hakları ihlalleri tolere edilmez.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">6. Akıllı Ev Özellikleri</h4>
+      <p>6.1. Akıllı kapı kilidi, aydınlatma ve klima kontrolü hizmetlerimize dahildir.</p>
+      <p>6.2. Bu özelliklerin kötüye kullanımı hesap askıya alınmasına neden olabilir.</p>
+      <p>6.3. Teknik arızalarda 7/24 destek hattımız hizmetinizdedir.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">7. Sorumluluk Sınırları</h4>
+      <p>7.1. SmartStay, kullanıcıların kişisel eşyalarından sorumlu değildir.</p>
+      <p>7.2. Mücbir sebeplerden kaynaklanan aksaklıklardan sorumluluk kabul edilmez.</p>
+      <p>7.3. Hizmet kesintileri için önceden bilgilendirme yapılır.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">8. Sözleşme Değişiklikleri</h4>
+      <p>SmartStay, bu şartları önceden bildirimde bulunarak değiştirme hakkını saklı tutar. Güncel şartlar her zaman uygulama ve web sitesinde yayınlanır.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">9. Uyuşmazlık Çözümü</h4>
+      <p>Bu sözleşmeden doğan uyuşmazlıklarda Türkiye Cumhuriyeti kanunları geçerlidir ve İstanbul Mahkemeleri yetkilidir.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">10. İletişim</h4>
+      <p>Sorularınız için: destek@smartstay.com.tr</p>
+     </div><button onclick="closeTermsModal()" class="w-full py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl mt-4" data-i18n="close_text">Kapat</button>
+    </div>
+   </div><!-- Privacy Modal -->
+   <div id="privacy-modal" class="fixed inset-0 bg-black/50 z-[150] hidden items-center justify-center p-4 overflow-auto">
+    <div class="cancel-modal bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl max-h-[90%] overflow-auto my-4">
+     <div class="flex items-center justify-between mb-4">
+      <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white" data-i18n="privacy_policy">KVKK &amp; Gizlilik Politikası</h3><button onclick="closePrivacyModal()" class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600"> <span class="text-xl">✕</span> </button>
+     </div>
+     <div class="prose dark:prose-invert text-sm text-gray-600 dark:text-gray-300 space-y-4 max-h-[60vh] overflow-auto pr-2">
+      <p class="font-semibold text-gray-800 dark:text-white">SmartStay Kişisel Verilerin Korunması ve Gizlilik Politikası</p>
+      <p><strong>Son Güncelleme:</strong> 01 Ocak 2025</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">1. Veri Sorumlusu</h4>
+      <p>SmartStay Teknoloji A.Ş. ("Şirket") olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında veri sorumlusu sıfatıyla kişisel verilerinizi işlemekteyiz.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">2. Toplanan Kişisel Veriler</h4>
+      <p>Hizmetlerimizi sunabilmek için aşağıdaki kişisel verileri topluyoruz:</p>
+      <ul class="list-disc pl-5 space-y-1">
+       <li><strong>Kimlik Bilgileri:</strong> Ad, soyad, T.C. kimlik numarası, cinsiyet</li>
+       <li><strong>İletişim Bilgileri:</strong> Telefon numarası, e-posta adresi</li>
+       <li><strong>Hesap Bilgileri:</strong> Kullanıcı adı, şifre (şifrelenmiş olarak)</li>
+       <li><strong>İşlem Bilgileri:</strong> Rezervasyon geçmişi, ödeme kayıtları</li>
+       <li><strong>Konum Bilgileri:</strong> Konaklama noktası tercihleri</li>
+       <li><strong>Cihaz Bilgileri:</strong> IP adresi, tarayıcı türü, işletim sistemi</li>
+      </ul>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">3. Verilerin İşlenme Amaçları</h4>
+      <p>Kişisel verileriniz aşağıdaki amaçlarla işlenmektedir:</p>
+      <ul class="list-disc pl-5 space-y-1">
+       <li>Üyelik işlemlerinin gerçekleştirilmesi</li>
+       <li>Rezervasyon ve konaklama hizmetlerinin sunulması</li>
+       <li>Ödeme işlemlerinin yürütülmesi</li>
+       <li>Müşteri hizmetleri ve destek sağlanması</li>
+       <li>Yasal yükümlülüklerin yerine getirilmesi</li>
+       <li>Hizmet kalitesinin artırılması ve analiz</li>
+       <li>Güvenlik ve dolandırıcılık önleme</li>
+      </ul>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">4. Verilerin Aktarılması</h4>
+      <p>Kişisel verileriniz, yasal zorunluluklar ve hizmet gereksinimleri dahilinde aşağıdaki taraflara aktarılabilir:</p>
+      <ul class="list-disc pl-5 space-y-1">
+       <li>Ödeme hizmeti sağlayıcıları (bankalar, ödeme kuruluşları)</li>
+       <li>Yasal otoriteler (mahkemeler, düzenleyici kurumlar)</li>
+       <li>Teknik altyapı hizmet sağlayıcıları</li>
+      </ul>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">5. Veri Saklama Süresi</h4>
+      <p>Kişisel verileriniz, işleme amaçlarının gerektirdiği süre boyunca ve yasal saklama süreleri dahilinde muhafaza edilir. Üyelik iptali sonrası veriler yasal süre sonunda silinir.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">6. Veri Güvenliği</h4>
+      <p>Verilerinizin güvenliği için aşağıdaki önlemleri alıyoruz:</p>
+      <ul class="list-disc pl-5 space-y-1">
+       <li>SSL/TLS şifreleme ile veri iletimi</li>
+       <li>Şifrelerin hash algoritmaları ile saklanması</li>
+       <li>Düzenli güvenlik denetimleri</li>
+       <li>Erişim kontrolleri ve yetkilendirme</li>
+       <li>Fiziksel ve dijital güvenlik önlemleri</li>
+      </ul>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">7. KVKK Kapsamındaki Haklarınız</h4>
+      <p>KVKK'nın 11. maddesi uyarınca aşağıdaki haklara sahipsiniz:</p>
+      <ul class="list-disc pl-5 space-y-1">
+       <li>Kişisel verilerinizin işlenip işlenmediğini öğrenme</li>
+       <li>İşlenen veriler hakkında bilgi talep etme</li>
+       <li>Verilerin işlenme amacını ve bu amaca uygun kullanılıp kullanılmadığını öğrenme</li>
+       <li>Verilerin yurtiçi veya yurtdışında aktarıldığı üçüncü kişileri öğrenme</li>
+       <li>Eksik veya yanlış işlenen verilerin düzeltilmesini isteme</li>
+       <li>Verilerin silinmesini veya yok edilmesini isteme</li>
+       <li>Düzeltme, silme veya yok etme işlemlerinin üçüncü kişilere bildirilmesini isteme</li>
+       <li>İşlenen verilerin otomatik sistemler vasıtasıyla analiz edilmesi sonucu aleyhinize bir sonucun ortaya çıkmasına itiraz etme</li>
+       <li>Kanuna aykırı işleme nedeniyle zarara uğramanız halinde zararın giderilmesini talep etme</li>
+      </ul>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">8. Çerezler (Cookies)</h4>
+      <p>Web sitemiz ve uygulamamız, kullanıcı deneyimini iyileştirmek için çerezler kullanmaktadır. Çerez tercihlerinizi tarayıcı ayarlarından yönetebilirsiniz.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">9. Politika Değişiklikleri</h4>
+      <p>Bu gizlilik politikası, yasal düzenlemeler veya hizmet değişiklikleri doğrultusunda güncellenebilir. Önemli değişiklikler için kullanıcılarımızı bilgilendiririz.</p>
+      <h4 class="font-semibold text-gray-800 dark:text-white mt-4">10. İletişim ve Başvuru</h4>
+      <p>KVKK kapsamındaki haklarınızı kullanmak veya sorularınız için:</p>
+      <p><strong>E-posta:</strong> kvkk@smartstay.com.tr</p>
+      <p><strong>Adres:</strong> SmartStay Teknoloji A.Ş., İstanbul, Türkiye</p>
+      <p><strong>KEP:</strong> smartstay@hs01.kep.tr</p>
+     </div><button onclick="closePrivacyModal()" class="w-full py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl mt-4" data-i18n="close_text">Kapat</button>
+    </div>
+   </div><!-- Cancel Confirmation Modal -->
+   <div id="cancel-modal" class="fixed inset-0 bg-black/50 z-[150] hidden items-center justify-center p-4">
+    <div class="cancel-modal bg-white dark:bg-gray-800 rounded-3xl p-8 max-w-md w-full shadow-2xl">
+     <div class="text-center">
+      <div class="w-20 h-20 bg-[#FF4B5C]/10 rounded-full flex items-center justify-center mx-auto mb-4"><span class="text-4xl">⚠️</span>
+      </div>
+      <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="cancel_confirm_title">Rezervasyonu İptal Et</h3>
+      <p class="text-gray-500 dark:text-gray-400 mb-6" data-i18n="cancel_confirm_msg">Bu rezervasyonu iptal etmek istediğinizden emin misiniz?</p>
+      <div class="flex gap-3"><button onclick="closeCancelModal()" class="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl" data-i18n="no_go_back">Hayır, Geri Dön</button> <button onclick="confirmCancelReservation()" class="flex-1 py-3 bg-[#FF4B5C] text-white font-medium rounded-xl" data-i18n="yes_cancel">Evet, İptal Et</button>
+      </div>
+     </div>
+    </div>
+   </div><!-- Language & Theme Selector -->
+   <div class="fixed top-4 right-4 z-[200] flex gap-2"><button onclick="toggleDarkMode()" id="theme-toggle" class="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-lg hover:shadow-xl transition-all" title="Dark Mode"> <span id="theme-icon">🌙</span> </button> <button onclick="setLanguage('tr')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-xl hover:shadow-xl hover:scale-110 transition-all" data-lang="tr" title="Türkçe">🇹🇷</button> <button onclick="setLanguage('en')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-xl hover:shadow-xl hover:scale-110 transition-all" data-lang="en" title="English">🇬🇧</button> <button onclick="setLanguage('de')" class="lang-btn w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-xl hover:shadow-xl hover:scale-110 transition-all" data-lang="de" title="Deutsch">🇩🇪</button>
    </div><!-- Screen 1: Welcome -->
-   <div id="screen-welcome" class="screen h-full w-full flex flex-col items-center justify-center p-6 relative overflow-hidden dark:bg-gray-900">
+   <div id="screen-welcome" class="screen h-full w-full flex flex-col items-center justify-center p-6 relative overflow-hidden">
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
      <div class="absolute top-20 left-10 text-6xl opacity-20 float-animation">
       🏡
@@ -81,12 +242,19 @@
      </div>
      <div class="absolute top-1/3 left-1/4 w-64 h-64 bg-[#4F8EF7] rounded-full opacity-10 dark:opacity-20 blur-3xl"></div>
     </div>
-    <div class="relative z-10 text-center max-w-md"><!-- Logo Alanı - Değiştirilebilir -->
-     <div id="app-logo" class="w-28 h-28 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl pulse-glow slide-up overflow-hidden"><!-- Logo: Kendi logonuzu kullanmak için logo_url ayarını kullanın veya aşağıdaki img'yi düzenleyin --> <img id="custom-logo" src="" alt="Logo" class="w-full h-full object-contain p-3 hidden" onerror="this.style.display='none'; document.getElementById('default-logo-icon').style.display='block';"> <span id="default-logo-icon" class="text-5xl">🏡</span>
+    <div class="relative z-10 text-center max-w-md">
+     <div class="w-28 h-28 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl pulse-glow slide-up">
+      <svg viewbox="0 0 100 100" class="w-20 h-20"><defs>
+        <lineargradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+         <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+         <stop offset="100%" style="stop-color:#e0f0ff;stop-opacity:1" />
+        </lineargradient>
+       </defs> <!-- House base --> <path d="M50 15 L85 45 L85 85 L15 85 L15 45 Z" fill="url(#logoGrad)" stroke="white" stroke-width="2" /> <!-- Roof --> <path d="M50 8 L92 42 L85 42 L50 15 L15 42 L8 42 Z" fill="white" /> <!-- Door --> <rect x="40" y="55" width="20" height="30" rx="2" fill="#4F8EF7" /> <!-- Door handle --> <circle cx="55" cy="72" r="2.5" fill="#30C48D" /> <!-- Windows --> <rect x="22" y="50" width="12" height="12" rx="1" fill="#4F8EF7" opacity="0.8" /> <rect x="66" y="50" width="12" height="12" rx="1" fill="#4F8EF7" opacity="0.8" /> <!-- Smart signals --> <path d="M75 25 Q80 20 85 25" stroke="#30C48D" stroke-width="2.5" fill="none" stroke-linecap="round" /> <path d="M78 30 Q82 27 86 30" stroke="#30C48D" stroke-width="2" fill="none" stroke-linecap="round" /> <circle cx="82" cy="34" r="2" fill="#30C48D" />
+      </svg>
      </div>
      <h1 id="main-title" class="font-heading text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-4 slide-up-delayed" data-i18n="app_title">Akıllı Ev Kiralama Sistemi</h1>
      <p id="main-subtitle" class="text-gray-500 dark:text-gray-400 text-lg mb-10 slide-up-delayed-2" data-i18n="welcome_subtitle">Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi</p>
-     <div class="space-y-4"><button onclick="showScreen('login')" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-2xl shadow-lg shadow-[#4F8EF7]/30 hover:bg-[#3D7CE5] transition-all" data-i18n="login">Giriş Yap</button> <button onclick="showScreen('register')" class="w-full py-4 bg-white dark:bg-gray-800 text-[#4F8EF7] font-semibold rounded-2xl border-2 border-[#4F8EF7] hover:bg-[#4F8EF7]/5 dark:hover:bg-[#4F8EF7]/10 transition-all" data-i18n="register">Üye Ol</button>
+     <div class="space-y-4"><button onclick="showScreen('login')" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-2xl shadow-lg shadow-[#4F8EF7]/30 hover:bg-[#3D7CE5] transition-all" data-i18n="login">Giriş Yap</button> <button onclick="showScreen('register')" class="w-full py-4 bg-white dark:bg-gray-800 text-[#4F8EF7] font-semibold rounded-2xl border-2 border-[#4F8EF7] hover:bg-[#4F8EF7]/5 transition-all" data-i18n="register">Üye Ol</button>
      </div>
     </div>
    </div><!-- Screen 2: Login -->
@@ -94,24 +262,25 @@
     <div class="w-full max-w-md">
      <div class="glass-card rounded-3xl shadow-xl p-8">
       <div class="text-center mb-8">
-       <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-3xl">🔐</span>
+       <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <span class="text-3xl">🔐</span>
        </div>
        <h2 class="font-heading text-2xl font-bold text-gray-800 dark:text-white" data-i18n="login">Giriş Yap</h2>
        <p class="text-gray-500 dark:text-gray-400 text-sm mt-2" data-i18n="access_account">Hesabınıza erişin</p>
       </div>
       <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
-       <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="login-tc" data-i18n="tc_id">T.C. Kimlik No</label> <input type="text" id="login-tc" maxlength="11" data-i18n-placeholder="tc_placeholder" placeholder="11 haneli T.C. Kimlik No" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] focus:ring-2 focus:ring-[#4F8EF7]/20 outline-none transition-all">
+       <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="login-tc" data-i18n="tc_id">T.C. Kimlik No</label> <input type="text" id="login-tc" maxlength="11" placeholder="11 haneli T.C. Kimlik No" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] focus:ring-2 focus:ring-[#4F8EF7]/20 outline-none transition-all">
        </div>
        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="login-password" data-i18n="password">Şifre</label> <input type="password" id="login-password" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] focus:ring-2 focus:ring-[#4F8EF7]/20 outline-none transition-all">
        </div>
        <div id="login-error" class="hidden p-3 bg-[#FF4B5C]/10 border border-[#FF4B5C]/20 rounded-xl text-[#FF4B5C] text-sm"></div><button type="submit" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-xl shadow-lg shadow-[#4F8EF7]/30 hover:bg-[#3D7CE5] transition-all" data-i18n="login">Giriş Yap</button>
       </form>
-      <div class="mt-6 text-center space-y-3"><button onclick="showScreen('register')" class="text-[#4F8EF7] hover:underline text-sm font-medium" data-i18n="no_account">Hesabınız yok mu? Üye olun</button> <br><button onclick="showScreen('welcome')" class="text-gray-400 hover:text-gray-600 text-sm" data-i18n="back_home">← Ana sayfaya dön</button>
+      <div class="mt-6 text-center space-y-3"><button onclick="showScreen('register')" class="text-[#4F8EF7] hover:underline text-sm font-medium" data-i18n="no_account">Hesabınız yok mu? Üye olun</button> <br><button onclick="showScreen('welcome')" class="text-gray-400 hover:text-gray-600 text-sm" data-i18n="back_home">����� Ana sayfaya dön</button>
       </div>
      </div>
     </div>
    </div><!-- Screen 3: Register -->
-   <div id="screen-register" class="screen h-full w-full hidden flex-col items-center justify-center p-6 overflow-auto dark:bg-gray-900">
+   <div id="screen-register" class="screen h-full w-full hidden flex-col items-center justify-center p-6 overflow-auto">
     <div class="w-full max-w-lg py-8">
      <div class="mb-8">
       <div class="flex items-center justify-between mb-4"><span id="step-label" class="text-sm font-medium text-gray-600 dark:text-gray-400">Adım 1/4</span> <span id="step-title" class="text-sm font-medium text-[#4F8EF7]" data-i18n="personal_info">Kişisel Bilgiler</span>
@@ -125,16 +294,16 @@
        <h2 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-6">👤 <span data-i18n="personal_info">Kişisel Bilgiler</span></h2>
        <div class="space-y-4">
         <div class="grid grid-cols-2 gap-4">
-         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-name" data-i18n="first_name">Ad</label> <input type="text" id="reg-name" data-i18n-placeholder="your_name" placeholder="Adınız" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-name" data-i18n="first_name">Ad</label> <input type="text" id="reg-name" placeholder="Adınız" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
          </div>
-         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-surname" data-i18n="last_name">Soyad</label> <input type="text" id="reg-surname" data-i18n-placeholder="your_surname" placeholder="Soyadınız" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-surname" data-i18n="last_name">Soyad</label> <input type="text" id="reg-surname" placeholder="Soyadınız" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
          </div>
         </div>
         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-phone" data-i18n="phone">Telefon</label> <input type="tel" id="reg-phone" placeholder="0(5XX) XXX XX XX" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-email" data-i18n="email">E-posta</label> <input type="email" id="reg-email" placeholder="ornek@email.com" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-tc" data-i18n="tc_id">T.C. Kimlik No</label> <input type="text" id="reg-tc" maxlength="11" data-i18n-placeholder="tc_placeholder" placeholder="11 haneli T.C. Kimlik No" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
+        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-tc" data-i18n="tc_id">T.C. Kimlik No</label> <input type="text" id="reg-tc" maxlength="11" placeholder="11 haneli T.C. Kimlik No" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-gender" data-i18n="gender">Cinsiyet</label> <select id="reg-gender" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none bg-white"> <option value="" data-i18n-opt="select">Seçiniz</option> <option value="male" data-i18n-opt="male">Erkek</option> <option value="female" data-i18n-opt="female">Kadın</option> <option value="other" data-i18n-opt="prefer_not_say">Belirtmek İstemiyorum</option> </select>
         </div>
@@ -146,9 +315,9 @@
         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-username" data-i18n="username">Kullanıcı Adı</label> <input type="text" id="reg-username" placeholder="kullanici.adi" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
         </div>
         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" for="reg-password" data-i18n="password">Şifre</label> <input type="password" id="reg-password" placeholder="••••••••" required class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none">
-         <div class="mt-2 p-3 bg-[#4F8EF7]/5 dark:bg-[#4F8EF7]/10 rounded-lg">
+         <div class="mt-2 p-3 bg-[#4F8EF7]/5 rounded-lg">
           <p class="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1" data-i18n="password_requirements">Şifre gereksinimleri:</p>
-          <ul class="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+          <ul class="text-xs text-gray-500 space-y-1">
            <li id="req-length">○ <span data-i18n="req_length">En az 8 karakter</span></li>
            <li id="req-upper">○ <span data-i18n="req_upper">En az 1 büyük harf</span></li>
            <li id="req-number">○ <span data-i18n="req_number">En az 1 rakam</span></li>
@@ -162,20 +331,29 @@
       </div><!-- Step 3 -->
       <div id="register-step-3" class="register-step hidden">
        <h2 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-6">📋 <span data-i18n="agreements">Sözleşmeler</span></h2>
-       <div class="space-y-4"><label class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"> <input type="checkbox" id="agree-terms" class="w-5 h-5 mt-0.5 rounded border-gray-300 text-[#4F8EF7]">
-         <div>
-          <p class="font-medium text-gray-800 dark:text-white" data-i18n="terms_of_use">Kullanım Şartları</p>
+       <div class="space-y-4">
+        <div class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"><input type="checkbox" id="agree-terms" class="w-5 h-5 mt-0.5 rounded border-gray-300 text-[#4F8EF7] cursor-pointer">
+         <div class="flex-1">
+          <div class="flex items-center justify-between">
+           <p class="font-medium text-gray-800 dark:text-white" data-i18n="terms_of_use">Kullanım Şartları</p><button type="button" onclick="openTermsModal()" class="text-[#4F8EF7] hover:underline text-sm font-medium flex items-center gap-1"> <span>📄</span> <span data-i18n="read_text">Oku</span> </button>
+          </div>
           <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="terms_desc">Hizmet kullanım koşullarını okudum ve kabul ediyorum.</p>
-         </div></label> <label class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"> <input type="checkbox" id="agree-kvkk" class="w-5 h-5 mt-0.5 rounded border-gray-300 text-[#4F8EF7]">
-         <div>
-          <p class="font-medium text-gray-800 dark:text-white" data-i18n="privacy_policy">KVKK &amp; Gizlilik Politikası</p>
+         </div>
+        </div>
+        <div class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"><input type="checkbox" id="agree-kvkk" class="w-5 h-5 mt-0.5 rounded border-gray-300 text-[#4F8EF7] cursor-pointer">
+         <div class="flex-1">
+          <div class="flex items-center justify-between">
+           <p class="font-medium text-gray-800 dark:text-white" data-i18n="privacy_policy">KVKK &amp; Gizlilik Politikası</p><button type="button" onclick="openPrivacyModal()" class="text-[#4F8EF7] hover:underline text-sm font-medium flex items-center gap-1"> <span>📄</span> <span data-i18n="read_text">Oku</span> </button>
+          </div>
           <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="privacy_desc">Kişisel verilerimin işlenmesine ilişkin aydınlatma metnini okudum.</p>
-         </div></label>
+         </div>
+        </div>
         <div id="agreement-error" class="hidden p-3 bg-[#FF4B5C]/10 border border-[#FF4B5C]/20 rounded-xl text-[#FF4B5C] text-sm"></div>
        </div>
       </div><!-- Step 4 -->
       <div id="register-step-4" class="register-step hidden text-center py-8">
-       <div class="w-24 h-24 bg-[#30C48D]/10 rounded-full flex items-center justify-center mx-auto mb-6"><span class="text-5xl">🎉</span>
+       <div class="w-24 h-24 bg-[#30C48D]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+        <span class="text-5xl">🎉</span>
        </div>
        <h2 class="font-heading text-2xl font-bold text-gray-800 dark:text-white mb-3" data-i18n="register_success">Üyelik Başarılı!</h2>
        <p class="text-gray-500 dark:text-gray-400 mb-8" data-i18n="register_success_desc">Hesabınız başarıyla oluşturuldu.</p><button onclick="showScreen('login')" class="px-8 py-4 bg-[#30C48D] text-white font-semibold rounded-xl" data-i18n="login">Giriş Yap</button>
@@ -183,12 +361,20 @@
       <div id="register-nav" class="flex gap-4 mt-8"><button onclick="prevStep()" id="btn-prev" class="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hidden" data-i18n="back">← Geri</button> <button onclick="nextStep()" id="btn-next" class="flex-1 py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl" data-i18n="next">İleri →</button>
       </div>
       <div id="register-error" class="hidden mt-4 p-3 bg-[#FF4B5C]/10 border border-[#FF4B5C]/20 rounded-xl text-[#FF4B5C] text-sm"></div>
-     </div><button onclick="showScreen('welcome')" class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-sm mt-6 block mx-auto" data-i18n="back_home">← Ana sayfaya dön</button>
+     </div><button onclick="showScreen('welcome')" class="text-gray-400 hover:text-gray-600 text-sm mt-6 block mx-auto" data-i18n="back_home">← Ana sayfaya dön</button>
     </div>
    </div><!-- Screen 4: Dashboard -->
    <div id="screen-dashboard" class="screen h-full w-full hidden">
     <div class="flex h-full"><!-- Sidebar -->
      <aside id="sidebar" class="w-72 bg-white dark:bg-gray-800 h-full shadow-xl flex flex-col fixed md:relative z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300">
+      <div class="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-center">
+       <div class="flex items-center gap-2">
+        <div class="w-10 h-10 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-xl flex items-center justify-center">
+         <svg viewbox="0 0 100 100" class="w-7 h-7"><path d="M50 15 L85 45 L85 85 L15 85 L15 45 Z" fill="white" opacity="0.9" /> <path d="M50 8 L92 42 L85 42 L50 15 L15 42 L8 42 Z" fill="white" /> <rect x="40" y="55" width="20" height="30" rx="2" fill="#4F8EF7" /> <circle cx="55" cy="72" r="2.5" fill="#30C48D" />
+         </svg>
+        </div><span class="font-heading font-bold text-gray-800 dark:text-white text-lg">SmartStay</span>
+       </div>
+      </div>
       <div class="p-6 border-b border-gray-100 dark:border-gray-700">
        <div class="flex items-center gap-4">
         <div id="user-avatar" class="w-14 h-14 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-2xl flex items-center justify-center text-white text-xl font-bold">
@@ -202,13 +388,19 @@
       </div>
       <nav class="flex-1 py-4"><button onclick="setActiveMenu(this); showDashboardSection('home')" class="sidebar-item active w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">🏠</span> <span class="font-medium text-gray-700 dark:text-gray-300" data-i18n="home">Ana Sayfa</span> </button> <button onclick="setActiveMenu(this); showScreen('locations')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">➕</span> <span class="font-medium text-gray-700 dark:text-gray-300" data-i18n="new_reservation">Yeni Rezervasyon</span> </button> <button onclick="setActiveMenu(this); showDashboardSection('history')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">📋</span> <span class="font-medium text-gray-700 dark:text-gray-300" data-i18n="reservation_history">Rezervasyon Geçmişi</span> </button> <button onclick="setActiveMenu(this); showDashboardSection('settings')" class="sidebar-item w-full flex items-center gap-4 px-6 py-3 text-left"> <span class="text-xl">⚙️</span> <span class="font-medium text-gray-700 dark:text-gray-300" data-i18n="account_settings">Hesap Ayarları</span> </button>
       </nav>
-      <div class="p-4 border-t border-gray-100 dark:border-gray-700"><button onclick="handleLogout()" class="w-full flex items-center gap-4 px-4 py-3 text-left text-[#FF4B5C] hover:bg-[#FF4B5C]/5 dark:hover:bg-[#FF4B5C]/10 rounded-xl"> <span class="text-xl">���</span> <span class="font-medium" data-i18n="logout">Çıkış Yap</span> </button>
+      <div class="p-4 border-t border-gray-100 dark:border-gray-700"><button onclick="handleLogout()" class="w-full flex items-center gap-4 px-4 py-3 text-left text-[#FF4B5C] hover:bg-[#FF4B5C]/5 rounded-xl"> <span class="text-xl">🚪</span> <span class="font-medium" data-i18n="logout">Çıkış Yap</span> </button>
       </div>
      </aside><!-- Mobile Header -->
      <div class="md:hidden fixed top-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-md z-40 px-4 py-3 flex items-center justify-between"><button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl">
        <svg class="w-6 h-6 dark:text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-       </svg></button> <span class="font-heading font-semibold dark:text-white" data-i18n="smart_home">Akıllı Ev</span>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+       </svg></button>
+      <div class="flex items-center gap-2">
+       <div class="w-8 h-8 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-lg flex items-center justify-center">
+        <svg viewbox="0 0 100 100" class="w-5 h-5"><path d="M50 15 L85 45 L85 85 L15 85 L15 45 Z" fill="white" opacity="0.9" /> <path d="M50 8 L92 42 L85 42 L50 15 L15 42 L8 42 Z" fill="white" /> <rect x="40" y="55" width="20" height="30" rx="2" fill="#4F8EF7" />
+        </svg>
+       </div><span class="font-heading font-semibold dark:text-white">SmartStay</span>
+      </div>
       <div id="mobile-avatar" class="w-10 h-10 bg-gradient-to-br from-[#4F8EF7] to-[#30C48D] rounded-xl flex items-center justify-center text-white text-sm font-bold">
        --
       </div>
@@ -219,10 +411,11 @@
        <h1 id="welcome-title" class="font-heading text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2">Hoş Geldiniz! 👋</h1>
        <p class="text-gray-500 dark:text-gray-400 mb-8" data-i18n="dashboard_overview">Akıllı ev kiralama sisteminize genel bakış</p>
        <div id="no-reservation-card" class="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg mb-8 text-center">
-        <div class="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-4xl">🏠</span>
+        <div class="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+         <span class="text-4xl">🏠</span>
         </div>
         <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="no_active_reservation">Aktif Rezervasyonunuz Yok</h3>
-        <p class="text-gray-500 dark:text-gray-400 mb-6" data-i18n="no_reservation_desc">Hemen yeni bir rezervasyon oluşturun.</p><button onclick="showScreen('locations')" class="px-6 py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl"> ➕ <span data-i18n="new_reservation">Yeni Rezervasyon</span> </button>
+        <p class="text-gray-500 dark:text-gray-400 mb-6" data-i18n="no_reservation_desc">Hemen yeni bir rezervasyon oluşturun.</p><button onclick="showScreen('locations')" class="px-6 py-3 bg-[#4F8EF7] text-white font-semibold rounded-xl">➕ <span data-i18n="new_reservation">Yeni Rezervasyon</span></button>
        </div>
        <div id="user-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg">
@@ -258,11 +451,12 @@
       <div id="dashboard-history" class="dashboard-section hidden">
        <h1 class="font-heading text-2xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="reservation_history">Rezervasyon Geçmişi</h1>
        <p class="text-gray-500 dark:text-gray-400 mb-6" data-i18n="history_desc">Tüm rezervasyonlarınızı görüntüleyin ve yönetin</p>
-       <div class="flex gap-3 mb-6 overflow-x-auto pb-2"><button onclick="filterReservations('all')" class="filter-btn active px-4 py-2 bg-[#4F8EF7] text-white rounded-xl font-medium whitespace-nowrap" data-filter="all" data-i18n="all">Tümü</button> <button onclick="filterReservations('active')" class="filter-btn px-4 py-2 bg-white text-gray-600 rounded-xl font-medium whitespace-nowrap" data-filter="active" data-i18n="active_reservations">Aktif</button> <button onclick="filterReservations('completed')" class="filter-btn px-4 py-2 bg-white text-gray-600 rounded-xl font-medium whitespace-nowrap" data-filter="completed" data-i18n="completed_reservations">Tamamlanan</button> <button onclick="filterReservations('cancelled')" class="filter-btn px-4 py-2 bg-white text-gray-600 rounded-xl font-medium whitespace-nowrap" data-filter="cancelled" data-i18n="cancelled_reservations">İptal Edilen</button>
+       <div class="flex gap-3 mb-6 overflow-x-auto pb-2"><button onclick="filterReservations('all')" class="filter-btn active px-4 py-2 bg-[#4F8EF7] text-white rounded-xl font-medium whitespace-nowrap" data-filter="all" data-i18n="all">Tümü</button> <button onclick="filterReservations('active')" class="filter-btn px-4 py-2 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-medium whitespace-nowrap" data-filter="active" data-i18n="active_reservations">Aktif</button> <button onclick="filterReservations('completed')" class="filter-btn px-4 py-2 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-medium whitespace-nowrap" data-filter="completed" data-i18n="completed_reservations">Tamamlanan</button> <button onclick="filterReservations('cancelled')" class="filter-btn px-4 py-2 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-medium whitespace-nowrap" data-filter="cancelled" data-i18n="cancelled_reservations">İptal Edilen</button>
        </div>
        <div id="reservations-list" class="space-y-4"></div>
        <div id="no-reservations" class="hidden text-center py-12">
-        <div class="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-4xl">📭</span>
+        <div class="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+         <span class="text-4xl">📭</span>
         </div>
         <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="no_reservations">Rezervasyon Bulunamadı</h3>
         <p class="text-gray-500 dark:text-gray-400" data-i18n="no_reservations_desc">Bu kategoride henüz rezervasyonunuz yok.</p>
@@ -272,11 +466,14 @@
        <h1 class="font-heading text-2xl font-bold text-gray-800 dark:text-white mb-6" data-i18n="account_settings">Hesap Ayarları</h1>
        <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 max-w-2xl">
         <div class="space-y-6">
-         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="full_name">Ad Soyad</label> <input type="text" id="settings-name" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white" readonly>
+         <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="full_name">Ad Soyad</label><input type="text" id="settings-name" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50" readonly>
          </div>
-         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="email">E-posta</label> <input type="email" id="settings-email" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white" readonly>
+         <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="email">E-posta</label><input type="email" id="settings-email" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50" readonly>
          </div>
-         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="phone">Telefon</label> <input type="tel" id="settings-phone" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white" readonly>
+         <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="phone">Telefon</label><input type="tel" id="settings-phone" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50" readonly>
          </div>
         </div>
        </div>
@@ -284,38 +481,180 @@
      </main>
     </div>
    </div><!-- Screen 5: Locations -->
-   <div id="screen-locations" class="screen h-full w-full hidden overflow-auto dark:bg-gray-900">
-    <div class="p-6 md:p-8 pt-16 md:pt-6"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span> </button>
+   <div id="screen-locations" class="screen h-full w-full hidden overflow-auto">
+    <div class="p-6 md:p-8 pt-16 md:pt-6"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 mb-6"><span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span></button>
      <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="select_location">Konaklama Noktası Seçin</h1>
-     <p class="text-gray-500 dark:text-gray-400 mb-8" data-i18n="select_location_desc">Size en uygun lokasyonu seçin</p>
-     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"><button onclick="selectLocation('istanbul-kadikoy', 'İstanbul - Kadıköy')" class="room-card bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg text-left">
-       <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mb-4">
-        <span class="text-3xl">🏠</span>
-       </div><h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-1">İstanbul - Kadıköy</h3><p class="text-gray-500 dark:text-gray-400 mb-4">İstanbul, Türkiye</p>
-       <div class="flex items-center gap-2"><span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-sm">12 <span data-i18n="rooms">Oda</span></span> <span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-sm">8 <span data-i18n="available">Müsait</span></span>
-       </div></button> <button onclick="selectLocation('istanbul-besiktas', 'İstanbul - Beşiktaş')" class="room-card bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg text-left">
-       <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mb-4">
-        <span class="text-3xl">🏠</span>
-       </div><h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-1">İstanbul - Beşiktaş</h3><p class="text-gray-500 dark:text-gray-400 mb-4">İstanbul, Türkiye</p>
-       <div class="flex items-center gap-2"><span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-sm">8 <span data-i18n="rooms">Oda</span></span> <span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-sm">5 <span data-i18n="available">Müsait</span></span>
-       </div></button> <button onclick="selectLocation('ankara-cankaya', 'Ankara - Çankaya')" class="room-card bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg text-left">
-       <div class="w-16 h-16 bg-[#4F8EF7]/10 rounded-2xl flex items-center justify-center mb-4">
-        <span class="text-3xl">🏠</span>
-       </div><h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-1">Ankara - Çankaya</h3><p class="text-gray-500 dark:text-gray-400 mb-4">Ankara, Türkiye</p>
-       <div class="flex items-center gap-2"><span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-sm">15 <span data-i18n="rooms">Oda</span></span> <span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-sm">10 <span data-i18n="available">Müsait</span></span>
-       </div></button>
+     <p class="text-gray-500 dark:text-gray-400 mb-6" data-i18n="select_location_desc">Haritadan bir lokasyon seçin veya aşağıdaki listeden tercih yapın</p><!-- Find Nearest Location Button -->
+     <div id="location-suggestion" class="bg-gradient-to-r from-[#4F8EF7] to-[#30C48D] rounded-2xl p-5 mb-6 shadow-lg">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+       <div class="flex items-center gap-4">
+        <div class="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center"><span class="text-3xl">📍</span>
+        </div>
+        <div>
+         <h3 class="font-heading font-bold text-white" data-i18n="find_nearest">Size En Yakın Noktayı Bulun</h3>
+         <p class="text-white/80 text-sm" data-i18n="find_nearest_desc">Konumunuza göre en yakın konaklama noktasını öneririz</p>
+        </div>
+       </div><button onclick="findNearestLocation()" id="find-location-btn" class="px-6 py-3 bg-white text-[#4F8EF7] font-bold rounded-xl hover:bg-gray-100 transition-all flex items-center gap-2"> <span>🧭</span> <span data-i18n="use_my_location">Konumumu Kullan</span> </button>
+      </div>
+      <div id="nearest-result" class="hidden mt-4 p-4 bg-white/10 rounded-xl">
+       <div class="flex items-center justify-between">
+        <div>
+         <p class="text-white/80 text-sm" data-i18n="nearest_location">En Yakın Konaklama Noktası:</p>
+         <h4 id="nearest-name" class="font-heading font-bold text-white text-lg">-</h4>
+         <p id="nearest-distance" class="text-white/70 text-sm">-</p>
+        </div><button onclick="selectNearestLocation()" class="px-5 py-2 bg-white text-[#30C48D] font-bold rounded-xl hover:bg-gray-100 transition-all"> <span data-i18n="select_this">Bunu Seç</span> → </button>
+       </div>
+      </div>
+     </div><!-- Interactive Leaflet Map -->
+     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-8">
+      <div id="leaflet-map" class="leaflet-map-container"></div>
+      <div class="mt-4 text-center">
+       <p class="text-sm text-gray-500 dark:text-gray-400">📍 <span data-i18n="click_pin">Haritadaki pinlere tıklayarak lokasyon seçin</span></p>
+      </div>
+     </div>
+     <h3 class="font-heading text-lg font-bold text-gray-800 dark:text-white mb-4" data-i18n="location_list">Lokasyon Listesi</h3>
+     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="location-cards">
+      <div class="location-card bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg cursor-pointer" id="card-kirklareli" onclick="selectLocationFromMap('kirklareli')">
+       <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+         <div class="w-12 h-12 bg-[#4F8EF7]/10 rounded-xl flex items-center justify-center">
+          <span class="text-2xl">🛣️</span>
+         </div>
+         <div>
+          <h4 class="font-heading font-bold text-gray-800 dark:text-white">E80 Avrupa Otoyolu</h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Kırklareli</p>
+         </div>
+        </div><a href="https://www.google.com/maps/@41.5767065,26.9846208,3a,75y,218.91h,90t" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-[#4F8EF7] hover:text-white transition-all" title="Google Maps'te Aç">
+         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+         </svg></a>
+       </div>
+       <div class="flex items-center gap-2">
+        <span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-xs font-medium">8 Oda</span><span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-xs font-medium">5 Müsait</span>
+       </div>
+      </div>
+      <div class="location-card bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg cursor-pointer" id="card-bolu" onclick="selectLocationFromMap('bolu')">
+       <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+         <div class="w-12 h-12 bg-[#4F8EF7]/10 rounded-xl flex items-center justify-center">
+          <span class="text-2xl">🛣️</span>
+         </div>
+         <div>
+          <h4 class="font-heading font-bold text-gray-800 dark:text-white">E89 Otoyolu</h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Bolu - Ankara</p>
+         </div>
+        </div><a href="https://www.google.com/maps/@40.6377893,32.2326244,3a,75y,192.05h,97.08t" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-[#4F8EF7] hover:text-white transition-all" title="Google Maps'te Aç">
+         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+         </svg></a>
+       </div>
+       <div class="flex items-center gap-2">
+        <span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-xs font-medium">12 Oda</span><span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-xs font-medium">8 Müsait</span>
+       </div>
+      </div>
+      <div class="location-card bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg cursor-pointer" id="card-mersin" onclick="selectLocationFromMap('mersin')">
+       <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+         <div class="w-12 h-12 bg-[#4F8EF7]/10 rounded-xl flex items-center justify-center">
+          <span class="text-2xl">🛣️</span>
+         </div>
+         <div>
+          <h4 class="font-heading font-bold text-gray-800 dark:text-white">E90 Otoyolu</h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Mersin - Adana</p>
+         </div>
+        </div><a href="https://www.google.com/maps/@37.0187251,35.0094363,3a,75y,8.08h,86.47t" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-[#4F8EF7] hover:text-white transition-all" title="Google Maps'te Aç">
+         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+         </svg></a>
+       </div>
+       <div class="flex items-center gap-2">
+        <span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-xs font-medium">10 Oda</span><span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-xs font-medium">7 Müsait</span>
+       </div>
+      </div>
+      <div class="location-card bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg cursor-pointer" id="card-izmir" onclick="selectLocationFromMap('izmir')">
+       <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+         <div class="w-12 h-12 bg-[#4F8EF7]/10 rounded-xl flex items-center justify-center">
+          <span class="text-2xl">🛣️</span>
+         </div>
+         <div>
+          <h4 class="font-heading font-bold text-gray-800 dark:text-white">E96 Otoyolu</h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400">İzmir - Uşak</p>
+         </div>
+        </div><a href="https://www.google.com/maps/@38.530735,28.412058,3a,75y,316.74h,78.64t" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-[#4F8EF7] hover:text-white transition-all" title="Google Maps'te Aç">
+         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+         </svg></a>
+       </div>
+       <div class="flex items-center gap-2">
+        <span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-xs font-medium">6 Oda</span><span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-xs font-medium">4 Müsait</span>
+       </div>
+      </div>
+      <div class="location-card bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg cursor-pointer" id="card-erzurum" onclick="selectLocationFromMap('erzurum')">
+       <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+         <div class="w-12 h-12 bg-[#4F8EF7]/10 rounded-xl flex items-center justify-center">
+          <span class="text-2xl">🛣️</span>
+         </div>
+         <div>
+          <h4 class="font-heading font-bold text-gray-800 dark:text-white">E97 Otoyolu</h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Erzurum</p>
+         </div>
+        </div><a href="https://www.google.com/maps/@39.9598748,40.5747777,3a,75y,31.6h,76.59t" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-[#4F8EF7] hover:text-white transition-all" title="Google Maps'te Aç">
+         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+         </svg></a>
+       </div>
+       <div class="flex items-center gap-2">
+        <span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-xs font-medium">8 Oda</span><span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-xs font-medium">6 Müsait</span>
+       </div>
+      </div>
+      <div class="location-card bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg cursor-pointer" id="card-sivas" onclick="selectLocationFromMap('sivas')">
+       <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-3">
+         <div class="w-12 h-12 bg-[#4F8EF7]/10 rounded-xl flex items-center justify-center">
+          <span class="text-2xl">🛣️</span>
+         </div>
+         <div>
+          <h4 class="font-heading font-bold text-gray-800 dark:text-white">E88 Otoyolu</h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Sivas</p>
+         </div>
+        </div><a href="https://www.google.com/maps/@39.8121973,36.2433486,3a,75y,278.56h,78.63t" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-[#4F8EF7] hover:text-white transition-all" title="Google Maps'te Aç">
+         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+         </svg></a>
+       </div>
+       <div class="flex items-center gap-2">
+        <span class="px-3 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full text-xs font-medium">10 Oda</span><span class="px-3 py-1 bg-[#4F8EF7]/10 text-[#4F8EF7] rounded-full text-xs font-medium">7 Müsait</span>
+       </div>
+      </div>
+     </div>
+     <div id="selected-location-info" class="hidden mt-8 bg-gradient-to-r from-[#4F8EF7] to-[#30C48D] rounded-2xl p-6 text-white">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+       <div class="flex items-center gap-4">
+        <div class="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+         <span class="text-3xl">✅</span>
+        </div>
+        <div>
+         <p class="text-white/80 text-sm" data-i18n="selected_location">Seçilen Lokasyon</p>
+         <h3 id="selected-location-name" class="font-heading text-xl font-bold">-</h3>
+        </div>
+       </div><button onclick="continueToDatetime()" class="px-8 py-4 bg-white text-[#4F8EF7] font-bold rounded-xl hover:bg-gray-100 transition-all"><span data-i18n="continue">Devam Et</span> →</button>
+      </div>
      </div>
     </div>
    </div><!-- Screen 6: DateTime -->
-   <div id="screen-datetime" class="screen h-full w-full hidden overflow-auto dark:bg-gray-900">
-    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('locations')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_locations">Lokasyonlara Dön</span> </button>
+   <div id="screen-datetime" class="screen h-full w-full hidden overflow-auto">
+    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('locations')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 mb-6"><span>←</span> <span data-i18n="back_locations">Lokasyonlara Dön</span></button>
      <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="select_datetime">Tarih &amp; Saat Seçin</h1>
      <p id="datetime-location" class="text-gray-500 dark:text-gray-400 mb-8">Lokasyon</p>
      <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 md:p-8">
       <div class="space-y-6">
-       <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="checkin_datetime">Giriş Tarihi &amp; Saati</label> <input type="datetime-local" id="checkin" required class="w-full px-4 py-4 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none text-lg">
+       <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="checkin_datetime">Giriş Tarihi &amp; Saati</label><input type="datetime-local" id="checkin" required class="w-full px-4 py-4 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none text-lg">
        </div>
-       <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="checkout_datetime">Çıkış Tarihi &amp; Saati</label> <input type="datetime-local" id="checkout" required class="w-full px-4 py-4 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none text-lg">
+       <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="checkout_datetime">Çıkış Tarihi &amp; Saati</label><input type="datetime-local" id="checkout" required class="w-full px-4 py-4 rounded-xl border border-gray-200 focus:border-[#4F8EF7] outline-none text-lg">
        </div>
        <div class="p-4 bg-[#FF4B5C]/10 rounded-xl">
         <p class="font-medium text-[#FF4B5C] text-sm">⚠️ <span data-i18n="max_duration_warning">Maksimum Süre Uyarısı</span></p>
@@ -326,8 +665,8 @@
      </div>
     </div>
    </div><!-- Screen 7: Rooms -->
-   <div id="screen-rooms" class="screen h-full w-full hidden overflow-auto dark:bg-gray-900">
-    <div class="p-6 md:p-8 pt-16 md:pt-6"><button onclick="showScreen('datetime')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_datetime">Tarih Seçimine Dön</span> </button>
+   <div id="screen-rooms" class="screen h-full w-full hidden overflow-auto">
+    <div class="p-6 md:p-8 pt-16 md:pt-6"><button onclick="showScreen('datetime')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 mb-6"><span>←</span> <span data-i18n="back_datetime">Tarih Seçimine Dön</span></button>
      <h1 class="font-heading text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="select_room">Oda Seçin</h1>
      <p id="rooms-info" class="text-gray-500 dark:text-gray-400 mb-4">Lokasyon • Tarih</p>
      <div class="flex items-center gap-6 mb-8">
@@ -341,32 +680,40 @@
      <div id="rooms-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
     </div>
    </div><!-- Screen 8: Payment -->
-   <div id="screen-payment" class="screen h-full w-full hidden overflow-auto dark:bg-gray-900">
-    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('rooms')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_room">Oda Seçimine Dön</span> </button>
+   <div id="screen-payment" class="screen h-full w-full hidden overflow-auto">
+    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('rooms')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 mb-6"><span>←</span> <span data-i18n="back_room">Oda Seçimine Dön</span></button>
      <h1 class="font-heading text-2xl font-bold text-gray-800 dark:text-white mb-2" data-i18n="reservation_payment">Rezervasyon &amp; Ödeme</h1>
      <p class="text-gray-500 dark:text-gray-400 mb-8" data-i18n="final_step">Son adım - Ödeme bilgilerinizi girin</p>
      <div class="grid md:grid-cols-2 gap-6">
       <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6">
        <h3 class="font-heading font-bold text-gray-800 dark:text-white mb-4" data-i18n="reservation_summary">Rezervasyon Özeti</h3>
        <div class="space-y-4">
-        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"><span class="text-gray-600 dark:text-gray-400" data-i18n="room">Oda</span> <span id="summary-room" class="font-medium dark:text-white">#-</span>
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+         <span class="text-gray-600 dark:text-gray-400" data-i18n="room">Oda</span><span id="summary-room" class="font-medium dark:text-white">#-</span>
         </div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"><span class="text-gray-600 dark:text-gray-400" data-i18n="location">Lokasyon</span> <span id="summary-location" class="font-medium dark:text-white">-</span>
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+         <span class="text-gray-600 dark:text-gray-400" data-i18n="location">Lokasyon</span><span id="summary-location" class="font-medium dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"><span class="text-gray-600 dark:text-gray-400" data-i18n="checkin">Giriş</span> <span id="summary-checkin" class="font-medium dark:text-white">-</span>
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+         <span class="text-gray-600 dark:text-gray-400" data-i18n="checkin">Giriş</span><span id="summary-checkin" class="font-medium dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"><span class="text-gray-600 dark:text-gray-400" data-i18n="checkout">Çıkış</span> <span id="summary-checkout" class="font-medium dark:text-white">-</span>
+        <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+         <span class="text-gray-600 dark:text-gray-400" data-i18n="checkout">Çıkış</span><span id="summary-checkout" class="font-medium dark:text-white">-</span>
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="guest_count">Kişi Sayısı</label> <select id="guests" onchange="updatePrice()" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white"> <option value="1" data-i18n-guest="1">1 Kişi</option> <option value="2" selected data-i18n-guest="2">2 Kişi</option> <option value="3" data-i18n-guest="3">3 Kişi</option> <option value="4" data-i18n-guest="4">4 Kişi</option> </select>
+        <div>
+         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="guest_count">Kişi Sayısı</label><select id="guests" onchange="updatePrice()" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white"><option value="1">1 Kişi</option><option value="2" selected>2 Kişi</option><option value="3">3 Kişi</option><option value="4">4 Kişi</option></select>
         </div>
        </div>
-       <div class="mt-6 p-4 bg-[#4F8EF7]/5 dark:bg-[#4F8EF7]/10 rounded-xl">
-        <div class="flex items-center justify-between mb-2"><span class="text-gray-600 dark:text-gray-400"><span id="price-hours">0</span> <span data-i18n="hour_unit">saat</span> x ₺50</span> <span id="price-base" class="font-medium dark:text-white">₺0</span>
+       <div class="mt-6 p-4 bg-[#4F8EF7]/5 rounded-xl">
+        <div class="flex items-center justify-between mb-2">
+         <span class="text-gray-600 dark:text-gray-400"><span id="price-hours">0</span> <span data-i18n="hour_unit">saat</span> x ₺50</span><span id="price-base" class="font-medium dark:text-white">₺0</span>
         </div>
-        <div id="price-extra-row" class="flex items-center justify-between mb-2 hidden"><span class="text-gray-600 dark:text-gray-400"><span data-i18n="extra_person">Ek kişi</span></span> <span id="price-extra" class="font-medium dark:text-white">₺0</span>
+        <div id="price-extra-row" class="flex items-center justify-between mb-2 hidden">
+         <span class="text-gray-600 dark:text-gray-400"><span data-i18n="extra_person">Ek kişi</span></span><span id="price-extra" class="font-medium dark:text-white">₺0</span>
         </div>
         <div class="border-t border-[#4F8EF7]/20 my-3"></div>
-        <div class="flex items-center justify-between"><span class="font-bold text-gray-800 dark:text-white" data-i18n="total">Toplam</span> <span id="price-total" class="font-bold text-xl text-[#4F8EF7]">₺0</span>
+        <div class="flex items-center justify-between">
+         <span class="font-bold text-gray-800 dark:text-white" data-i18n="total">Toplam</span><span id="price-total" class="font-bold text-xl text-[#4F8EF7]">₺0</span>
         </div>
        </div>
       </div>
@@ -374,56 +721,69 @@
        <h3 class="font-heading font-bold text-gray-800 dark:text-white mb-4">💳 <span data-i18n="card_info">Kart Bilgileri</span></h3>
        <p class="text-xs text-gray-400 mb-4 p-2 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">⚠️ <span data-i18n="demo_warning">Demo amaçlı - Gerçek ödeme yapılmaz</span></p>
        <form id="payment-form" onsubmit="handlePayment(event)" class="space-y-4">
-        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="card_name">Kart Üzerindeki İsim</label> <input type="text" id="card-name" placeholder="AD SOYAD" required class="w-full px-4 py-3 rounded-xl border border-gray-200 uppercase">
+        <div>
+         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="card_name">Kart Üzerindeki İsim</label><input type="text" id="card-name" placeholder="AD SOYAD" required class="w-full px-4 py-3 rounded-xl border border-gray-200 uppercase">
         </div>
-        <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="card_number">Kart Numarası</label> <input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
+        <div>
+         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="card_number">Kart Numarası</label><input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
         </div>
         <div class="grid grid-cols-2 gap-4">
-         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="expiry_date">Son Kullanma</label> <input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
+         <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" data-i18n="expiry_date">Son Kullanma</label><input type="text" id="card-expiry" placeholder="MM/YY" maxlength="5" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
          </div>
-         <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">CVV</label> <input type="text" id="card-cvv" placeholder="123" maxlength="3" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
+         <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">CVV</label><input type="text" id="card-cvv" placeholder="123" maxlength="3" required class="w-full px-4 py-3 rounded-xl border border-gray-200">
          </div>
-        </div><button type="submit" id="pay-btn" class="w-full py-4 bg-[#30C48D] text-white font-semibold rounded-xl mt-4"> <span id="pay-btn-text">₺0 <span data-i18n="complete_payment">Ödemeyi Tamamla</span></span> </button>
+        </div><button type="submit" id="pay-btn" class="w-full py-4 bg-[#30C48D] text-white font-semibold rounded-xl mt-4"><span id="pay-btn-text">₺0 <span data-i18n="complete_payment">Ödemeyi Tamamla</span></span></button>
        </form>
       </div>
      </div>
     </div>
    </div><!-- Screen 9: Ticket -->
    <div id="screen-ticket" class="screen h-full w-full hidden overflow-auto bg-gradient-to-br from-[#4F8EF7]/5 to-[#30C48D]/5 dark:from-gray-900 dark:to-gray-800">
-    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-md mx-auto"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-6"> <span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span> </button>
+    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-md mx-auto"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 mb-6"><span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span></button>
      <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden">
-      <div class="bg-gradient-to-r from-[#4F8EF7] to-[#30C48D] p-6 text-white text-center"><span class="text-4xl mb-3 block">🎫</span>
+      <div class="bg-gradient-to-r from-[#4F8EF7] to-[#30C48D] p-6 text-white text-center">
+       <span class="text-4xl mb-3 block">🎫</span>
        <h2 class="font-heading text-2xl font-bold" data-i18n="entry_ticket">Giriş Biletiniz</h2>
        <p class="text-white/80 text-sm" data-i18n="show_qr">Bu QR kodu kapıda gösterin</p>
       </div>
       <div class="p-8 flex justify-center ticket-edge dark:before:bg-gray-900 dark:after:bg-gray-900">
        <div class="w-48 h-48 bg-white dark:bg-gray-700 border-4 border-gray-100 dark:border-gray-600 rounded-2xl flex items-center justify-center">
-        <svg viewbox="0 0 100 100" class="w-40 h-40"><rect fill="#000" x="10" y="10" width="25" height="25" /><rect fill="#000" x="65" y="10" width="25" height="25" /> <rect fill="#000" x="10" y="65" width="25" height="25" /><rect fill="#fff" x="15" y="15" width="15" height="15" /> <rect fill="#fff" x="70" y="15" width="15" height="15" /><rect fill="#fff" x="15" y="70" width="15" height="15" /> <rect fill="#000" x="18" y="18" width="9" height="9" /><rect fill="#000" x="73" y="18" width="9" height="9" /> <rect fill="#000" x="18" y="73" width="9" height="9" /><rect fill="#000" x="40" y="40" width="20" height="20" /> <rect fill="#fff" x="45" y="45" width="10" height="10" /><rect fill="#000" x="65" y="65" width="25" height="25" /> <rect fill="#fff" x="70" y="70" width="15" height="15" /><rect fill="#000" x="73" y="73" width="9" height="9" />
+        <svg viewbox="0 0 100 100" class="w-40 h-40">
+         <rect fill="#000" x="10" y="10" width="25" height="25" /><rect fill="#000" x="65" y="10" width="25" height="25" /><rect fill="#000" x="10" y="65" width="25" height="25" /><rect fill="#fff" x="15" y="15" width="15" height="15" /><rect fill="#fff" x="70" y="15" width="15" height="15" /><rect fill="#fff" x="15" y="70" width="15" height="15" /><rect fill="#000" x="18" y="18" width="9" height="9" /><rect fill="#000" x="73" y="18" width="9" height="9" /><rect fill="#000" x="18" y="73" width="9" height="9" /><rect fill="#000" x="40" y="40" width="20" height="20" /><rect fill="#fff" x="45" y="45" width="10" height="10" /><rect fill="#000" x="65" y="65" width="25" height="25" /><rect fill="#fff" x="70" y="70" width="15" height="15" /><rect fill="#000" x="73" y="73" width="9" height="9" />
         </svg>
        </div>
       </div>
       <div class="px-6 pb-6">
        <div class="border-t-2 border-dashed border-gray-200 dark:border-gray-600 pt-6 space-y-3">
-        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="ticket_no">Bilet No</span> <span id="ticket-number" class="font-mono font-bold text-gray-800 dark:text-white">#TKT-0000</span>
+        <div class="flex items-center justify-between">
+         <span class="text-gray-500 dark:text-gray-400" data-i18n="ticket_no">Bilet No</span><span id="ticket-number" class="font-mono font-bold text-gray-800 dark:text-white">#TKT-0000</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="room">Oda</span> <span id="ticket-room" class="font-bold text-gray-800 dark:text-white">#-</span>
+        <div class="flex items-center justify-between">
+         <span class="text-gray-500 dark:text-gray-400" data-i18n="room">Oda</span><span id="ticket-room" class="font-bold text-gray-800 dark:text-white">#-</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="location">Lokasyon</span> <span id="ticket-location" class="font-medium text-gray-800 dark:text-white">-</span>
+        <div class="flex items-center justify-between">
+         <span class="text-gray-500 dark:text-gray-400" data-i18n="location">Lokasyon</span><span id="ticket-location" class="font-medium text-gray-800 dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="checkin">Giriş</span> <span id="ticket-checkin" class="font-medium text-gray-800 dark:text-white">-</span>
+        <div class="flex items-center justify-between">
+         <span class="text-gray-500 dark:text-gray-400" data-i18n="checkin">Giriş</span><span id="ticket-checkin" class="font-medium text-gray-800 dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="checkout">Çıkış</span> <span id="ticket-checkout" class="font-medium text-gray-800 dark:text-white">-</span>
+        <div class="flex items-center justify-between">
+         <span class="text-gray-500 dark:text-gray-400" data-i18n="checkout">Çıkış</span><span id="ticket-checkout" class="font-medium text-gray-800 dark:text-white">-</span>
         </div>
-        <div class="flex items-center justify-between"><span class="text-gray-500 dark:text-gray-400" data-i18n="guest_count">Kişi</span> <span id="ticket-guests" class="font-medium text-gray-800 dark:text-white">-</span>
+        <div class="flex items-center justify-between">
+         <span class="text-gray-500 dark:text-gray-400" data-i18n="guest_count">Kişi</span><span id="ticket-guests" class="font-medium text-gray-800 dark:text-white">-</span>
         </div>
-       </div><button onclick="showScreen('room-control')" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-xl mt-6"> 🎮 <span data-i18n="go_to_control">Oda Kontrol Paneline Git</span> </button>
+       </div><button onclick="showScreen('room-control')" class="w-full py-4 bg-[#4F8EF7] text-white font-semibold rounded-xl mt-6">🎮 <span data-i18n="go_to_control">Oda Kontrol Paneline Git</span></button>
       </div>
      </div>
     </div>
    </div><!-- Screen 10: Room Control -->
    <div id="screen-room-control" class="screen h-full w-full hidden overflow-auto bg-gray-900">
-    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-400 hover:text-white mb-6"> <span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span> </button>
-     <div class="text-center mb-8"><span class="text-5xl mb-4 block">🏠</span>
+    <div class="p-6 md:p-8 pt-16 md:pt-6 max-w-2xl mx-auto"><button onclick="showScreen('dashboard')" class="flex items-center gap-2 text-gray-400 hover:text-white mb-6"><span>←</span> <span data-i18n="back_dashboard">Dashboard'a Dön</span></button>
+     <div class="text-center mb-8">
+      <span class="text-5xl mb-4 block">🏠</span>
       <h1 class="font-heading text-2xl font-bold text-white mb-2" data-i18n="room_control_panel">Oda Kontrol Paneli</h1>
       <p id="control-room-info" class="text-gray-400">Oda #-</p>
      </div>
@@ -456,7 +816,8 @@
         <div id="toggle-ac" onclick="toggleSwitch('ac')" class="toggle-switch active"></div>
        </div>
        <div class="mt-4">
-        <div class="flex items-center justify-between mb-3"><span class="text-gray-400" data-i18n="temperature">Sıcaklık</span> <span id="temp-value" class="text-2xl font-bold text-white">22°C</span>
+        <div class="flex items-center justify-between mb-3">
+         <span class="text-gray-400" data-i18n="temperature">Sıcaklık</span><span id="temp-value" class="text-2xl font-bold text-white">22°C</span>
         </div><input type="range" id="temp-slider" min="16" max="30" value="22" oninput="updateTemp(this.value)" class="w-full">
        </div>
       </div>
@@ -485,7 +846,7 @@
           <p class="text-white/70 text-sm" data-i18n="door_desc">Bluetooth / QR ile açın</p>
          </div>
         </div>
-       </div><button id="door-btn" onclick="openDoor()" class="w-full mt-4 py-4 bg-white text-[#30C48D] font-bold rounded-xl"> <span>🔓</span> <span data-i18n="open_door">Kapıyı Aç</span> </button>
+       </div><button id="door-btn" onclick="openDoor()" class="w-full mt-4 py-4 bg-white text-[#30C48D] font-bold rounded-xl"><span>🔓</span> <span data-i18n="open_door">Kapıyı Aç</span></button>
       </div>
      </div>
      <p class="text-center text-gray-500 text-sm mt-8">🔒 <span data-i18n="secure_connection">Güvenli bağlantı • Bluetooth LE destekli</span></p>
@@ -495,550 +856,42 @@
   <script>
     // ==================== TRANSLATIONS ====================
     const translations = {
-      tr: {
-        app_title: 'Akıllı Ev Kiralama Sistemi',
-        welcome_subtitle: 'Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi',
-        smart_home: 'Akıllı Ev',
-        login: 'Giriş Yap',
-        register: 'Üye Ol',
-        logout: 'Çıkış Yap',
-        access_account: 'Hesabınıza erişin',
-        tc_id: 'T.C. Kimlik No',
-        tc_placeholder: '11 haneli T.C. Kimlik No',
-        password: 'Şifre',
-        no_account: 'Hesabınız yok mu? Üye olun',
-        back_home: '← Ana sayfaya dön',
-        personal_info: 'Kişisel Bilgiler',
-        account_info: 'Hesap Bilgileri',
-        agreements: 'Sözleşmeler',
-        completed: 'Tamamlandı',
-        first_name: 'Ad',
-        last_name: 'Soyad',
-        your_name: 'Adınız',
-        your_surname: 'Soyadınız',
-        phone: 'Telefon',
-        email: 'E-posta',
-        gender: 'Cinsiyet',
-        select: 'Seçiniz',
-        male: 'Erkek',
-        female: 'Kadın',
-        prefer_not_say: 'Belirtmek İstemiyorum',
-        username: 'Kullanıcı Adı',
-        password_confirm: 'Şifre Tekrar',
-        password_requirements: 'Şifre gereksinimleri:',
-        req_length: 'En az 8 karakter',
-        req_upper: 'En az 1 büyük harf',
-        req_number: 'En az 1 rakam',
-        req_special: 'En az 1 özel karakter',
-        passwords_not_match: 'Şifreler eşleşmiyor',
-        terms_of_use: 'Kullanım Şartları',
-        terms_desc: 'Hizmet kullanım koşullarını okudum ve kabul ediyorum.',
-        privacy_policy: 'KVKK & Gizlilik Politikası',
-        privacy_desc: 'Kişisel verilerimin işlenmesine ilişkin aydınlatma metnini okudum.',
-        register_success: 'Üyelik Başarılı!',
-        register_success_desc: 'Hesabınız başarıyla oluşturuldu.',
-        back: '← Geri',
-        next: 'İleri →',
-        complete: 'Tamamla',
-        step: 'Adım',
-        home: 'Ana Sayfa',
-        new_reservation: 'Yeni Rezervasyon',
-        account_settings: 'Hesap Ayarları',
-        dashboard_overview: 'Akıllı ev kiralama sisteminize genel bakış',
-        no_active_reservation: 'Aktif Rezervasyonunuz Yok',
-        no_reservation_desc: 'Hemen yeni bir rezervasyon oluşturun.',
-        total_stays: 'Toplam Konaklama',
-        hours: 'Saat',
-        hour_unit: 'saat',
-        avg_rating: 'Puan Ortalaması',
-        membership_level: 'Üyelik Seviyesi',
-        starter: 'Başlangıç',
-        silver: 'Gümüş',
-        gold: 'Altın',
-        full_name: 'Ad Soyad',
-        back_dashboard: "Dashboard'a Dön",
-        select_location: 'Konaklama Noktası Seçin',
-        select_location_desc: 'Size en uygun lokasyonu seçin',
-        rooms: 'Oda',
-        available: 'Müsait',
-        occupied: 'Dolu',
-        select_datetime: 'Tarih & Saat Seçin',
-        checkin_datetime: 'Giriş Tarihi & Saati',
-        checkout_datetime: 'Çıkış Tarihi & Saati',
-        max_duration_warning: 'Maksimum Süre Uyarısı',
-        max_duration_desc: 'Tek seferde maksimum 24 saat konaklama yapabilirsiniz.',
-        show_available_rooms: 'Müsait Odaları Göster',
-        back_locations: 'Lokasyonlara Dön',
-        select_room: 'Oda Seçin',
-        back_datetime: 'Tarih Seçimine Dön',
-        reservation_payment: 'Rezervasyon & Ödeme',
-        final_step: 'Son adım - Ödeme bilgilerinizi girin',
-        reservation_summary: 'Rezervasyon Özeti',
-        room: 'Oda',
-        location: 'Lokasyon',
-        checkin: 'Giriş',
-        checkout: 'Çıkış',
-        guest_count: 'Kişi Sayısı',
-        person: 'Kişi',
-        person_1: '1 Kişi',
-        person_2: '2 Kişi',
-        person_3: '3 Kişi',
-        person_4: '4 Kişi',
-        extra_person: 'Ek kişi',
-        total: 'Toplam',
-        card_info: 'Kart Bilgileri',
-        demo_warning: 'Demo amaçlı - Gerçek ödeme yapılmaz',
-        card_name: 'Kart Üzerindeki İsim',
-        card_number: 'Kart Numarası',
-        expiry_date: 'Son Kullanma',
-        complete_payment: 'Ödemeyi Tamamla',
-        back_room: 'Oda Seçimine Dön',
-        entry_ticket: 'Giriş Biletiniz',
-        show_qr: 'Bu QR kodu kapıda gösterin',
-        ticket_no: 'Bilet No',
-        go_to_control: 'Oda Kontrol Paneline Git',
-        room_control_panel: 'Oda Kontrol Paneli',
-        lights: 'Işıklar',
-        main_lighting: 'Ana aydınlatma',
-        ac: 'Klima',
-        temp_control: 'Sıcaklık kontrolü',
-        temperature: 'Sıcaklık',
-        tv: 'Televizyon',
-        door_control: 'Kapı Kontrolü',
-        door_desc: 'Bluetooth / QR ile açın',
-        open_door: 'Kapıyı Aç',
-        secure_connection: 'Güvenli bağlantı • Bluetooth LE destekli',
-        login_success: 'Giriş başarılı! Hoş geldiniz',
-        logout_success: 'Çıkış yapıldı',
-        reservation_success: 'Rezervasyonunuz başarıyla oluşturuldu!',
-        fill_all_fields: 'Lütfen tüm alanları doldurun.',
-        tc_invalid: 'T.C. Kimlik No 11 haneli olmalıdır.',
-        tc_exists: 'Bu T.C. Kimlik No ile kayıtlı hesap var.',
-        password_requirements_not_met: 'Şifre gereksinimlerini karşılamıyor.',
-        username_taken: 'Bu kullanıcı adı zaten alınmış.',
-        accept_agreements: 'Tüm sözleşmeleri kabul etmelisiniz.',
-        login_failed: 'T.C. Kimlik No veya şifre hatalı.',
-        select_dates: 'Lütfen tarih seçin.',
-        past_date: 'Geçmiş tarih seçilemez.',
-        checkout_before_checkin: 'Çıkış tarihi girişten sonra olmalı.',
-        max_24_hours: 'Maksimum 24 saat konaklama yapılabilir.',
-        processing: 'İşleniyor...',
-        payment_completed: 'Ödeme Tamamlandı ✓',
-        opening: 'Açılıyor...',
-        door_opened: 'Kapı Açıldı!',
-        reservation_history: 'Rezervasyon Geçmişi',
-        history_desc: 'Tüm rezervasyonlarınızı görüntüleyin ve yönetin',
-        all: 'Tümü',
-        active_reservations: 'Aktif',
-        completed_reservations: 'Tamamlanan',
-        cancelled_reservations: 'İptal Edilen',
-        no_reservations: 'Rezervasyon Bulunamadı',
-        no_reservations_desc: 'Bu kategoride henüz rezervasyonunuz yok.',
-        cancel_reservation: 'Rezervasyonu İptal Et',
-        view_ticket: 'Bileti Görüntüle',
-        room_control: 'Oda Kontrolü',
-        status_active: 'Aktif',
-        status_completed: 'Tamamlandı',
-        status_cancelled: 'İptal Edildi',
-        cancel_confirm_title: 'Rezervasyonu İptal Et',
-        cancel_confirm_msg: 'Bu rezervasyonu iptal etmek istediğinizden emin misiniz?',
-        yes_cancel: 'Evet, İptal Et',
-        no_go_back: 'Hayır, Geri Dön',
-        reservation_cancelled: 'Rezervasyon iptal edildi',
-        cannot_cancel_past: 'Geçmiş rezervasyonlar iptal edilemez'
-      },
-      en: {
-        app_title: 'Smart Home Rental System',
-        welcome_subtitle: 'Instant booking, control and access to smart rooms',
-        smart_home: 'Smart Home',
-        login: 'Login',
-        register: 'Sign Up',
-        logout: 'Logout',
-        access_account: 'Access your account',
-        tc_id: 'ID Number',
-        tc_placeholder: '11-digit ID Number',
-        password: 'Password',
-        no_account: "Don't have an account? Sign up",
-        back_home: '← Back to home',
-        personal_info: 'Personal Information',
-        account_info: 'Account Information',
-        agreements: 'Agreements',
-        completed: 'Completed',
-        first_name: 'First Name',
-        last_name: 'Last Name',
-        your_name: 'Your name',
-        your_surname: 'Your surname',
-        phone: 'Phone',
-        email: 'Email',
-        gender: 'Gender',
-        select: 'Select',
-        male: 'Male',
-        female: 'Female',
-        prefer_not_say: 'Prefer not to say',
-        username: 'Username',
-        password_confirm: 'Confirm Password',
-        password_requirements: 'Password requirements:',
-        req_length: 'At least 8 characters',
-        req_upper: 'At least 1 uppercase letter',
-        req_number: 'At least 1 number',
-        req_special: 'At least 1 special character',
-        passwords_not_match: 'Passwords do not match',
-        terms_of_use: 'Terms of Use',
-        terms_desc: 'I have read and accept the terms of service.',
-        privacy_policy: 'Privacy Policy',
-        privacy_desc: 'I have read the privacy policy.',
-        register_success: 'Registration Successful!',
-        register_success_desc: 'Your account has been created successfully.',
-        back: '← Back',
-        next: 'Next →',
-        complete: 'Complete',
-        step: 'Step',
-        home: 'Home',
-        new_reservation: 'New Reservation',
-        account_settings: 'Account Settings',
-        dashboard_overview: 'Overview of your smart home rental system',
-        no_active_reservation: 'No Active Reservation',
-        no_reservation_desc: 'Create a new reservation now.',
-        total_stays: 'Total Stays',
-        hours: 'Hours',
-        hour_unit: 'hours',
-        avg_rating: 'Average Rating',
-        membership_level: 'Membership Level',
-        starter: 'Starter',
-        silver: 'Silver',
-        gold: 'Gold',
-        full_name: 'Full Name',
-        back_dashboard: 'Back to Dashboard',
-        select_location: 'Select Location',
-        select_location_desc: 'Choose the most suitable location',
-        rooms: 'Rooms',
-        available: 'Available',
-        occupied: 'Occupied',
-        select_datetime: 'Select Date & Time',
-        checkin_datetime: 'Check-in Date & Time',
-        checkout_datetime: 'Check-out Date & Time',
-        max_duration_warning: 'Maximum Duration Warning',
-        max_duration_desc: 'Maximum stay is 24 hours at a time.',
-        show_available_rooms: 'Show Available Rooms',
-        back_locations: 'Back to Locations',
-        select_room: 'Select Room',
-        back_datetime: 'Back to Date Selection',
-        reservation_payment: 'Reservation & Payment',
-        final_step: 'Final step - Enter payment details',
-        reservation_summary: 'Reservation Summary',
-        room: 'Room',
-        location: 'Location',
-        checkin: 'Check-in',
-        checkout: 'Check-out',
-        guest_count: 'Number of Guests',
-        person: 'Person',
-        person_1: '1 Person',
-        person_2: '2 People',
-        person_3: '3 People',
-        person_4: '4 People',
-        extra_person: 'Extra person',
-        total: 'Total',
-        card_info: 'Card Information',
-        demo_warning: 'Demo only - No real payment',
-        card_name: 'Name on Card',
-        card_number: 'Card Number',
-        expiry_date: 'Expiry Date',
-        complete_payment: 'Complete Payment',
-        back_room: 'Back to Room Selection',
-        entry_ticket: 'Your Entry Ticket',
-        show_qr: 'Show this QR code at the door',
-        ticket_no: 'Ticket No',
-        go_to_control: 'Go to Room Control Panel',
-        room_control_panel: 'Room Control Panel',
-        lights: 'Lights',
-        main_lighting: 'Main lighting',
-        ac: 'Air Conditioning',
-        temp_control: 'Temperature control',
-        temperature: 'Temperature',
-        tv: 'Television',
-        door_control: 'Door Control',
-        door_desc: 'Open with Bluetooth / QR',
-        open_door: 'Open Door',
-        secure_connection: 'Secure connection • Bluetooth LE supported',
-        login_success: 'Login successful! Welcome',
-        logout_success: 'Logged out',
-        reservation_success: 'Your reservation has been created!',
-        fill_all_fields: 'Please fill in all fields.',
-        tc_invalid: 'ID Number must be 11 digits.',
-        tc_exists: 'An account with this ID already exists.',
-        password_requirements_not_met: 'Password does not meet requirements.',
-        username_taken: 'This username is already taken.',
-        accept_agreements: 'You must accept all agreements.',
-        login_failed: 'ID Number or password is incorrect.',
-        select_dates: 'Please select dates.',
-        past_date: 'Cannot select past date.',
-        checkout_before_checkin: 'Check-out must be after check-in.',
-        max_24_hours: 'Maximum stay is 24 hours.',
-        processing: 'Processing...',
-        payment_completed: 'Payment Completed ✓',
-        opening: 'Opening...',
-        door_opened: 'Door Opened!',
-        reservation_history: 'Reservation History',
-        history_desc: 'View and manage all your reservations',
-        all: 'All',
-        active_reservations: 'Active',
-        completed_reservations: 'Completed',
-        cancelled_reservations: 'Cancelled',
-        no_reservations: 'No Reservations Found',
-        no_reservations_desc: 'You have no reservations in this category.',
-        cancel_reservation: 'Cancel Reservation',
-        view_ticket: 'View Ticket',
-        room_control: 'Room Control',
-        status_active: 'Active',
-        status_completed: 'Completed',
-        status_cancelled: 'Cancelled',
-        cancel_confirm_title: 'Cancel Reservation',
-        cancel_confirm_msg: 'Are you sure you want to cancel this reservation?',
-        yes_cancel: 'Yes, Cancel',
-        no_go_back: 'No, Go Back',
-        reservation_cancelled: 'Reservation cancelled',
-        cannot_cancel_past: 'Past reservations cannot be cancelled'
-      },
-      de: {
-        app_title: 'Smart Home Mietsystem',
-        welcome_subtitle: 'Sofortige Buchung, Kontrolle und Zugang zu Smart Rooms',
-        smart_home: 'Smart Home',
-        login: 'Anmelden',
-        register: 'Registrieren',
-        logout: 'Abmelden',
-        access_account: 'Auf Ihr Konto zugreifen',
-        tc_id: 'Ausweisnummer',
-        tc_placeholder: '11-stellige Ausweisnummer',
-        password: 'Passwort',
-        no_account: 'Kein Konto? Registrieren',
-        back_home: '← Zurück zur Startseite',
-        personal_info: 'Persönliche Daten',
-        account_info: 'Kontoinformationen',
-        agreements: 'Vereinbarungen',
-        completed: 'Abgeschlossen',
-        first_name: 'Vorname',
-        last_name: 'Nachname',
-        your_name: 'Ihr Vorname',
-        your_surname: 'Ihr Nachname',
-        phone: 'Telefon',
-        email: 'E-Mail',
-        gender: 'Geschlecht',
-        select: 'Auswählen',
-        male: 'Männlich',
-        female: 'Weiblich',
-        prefer_not_say: 'Keine Angabe',
-        username: 'Benutzername',
-        password_confirm: 'Passwort bestätigen',
-        password_requirements: 'Passwortanforderungen:',
-        req_length: 'Mindestens 8 Zeichen',
-        req_upper: 'Mindestens 1 Großbuchstabe',
-        req_number: 'Mindestens 1 Zahl',
-        req_special: 'Mindestens 1 Sonderzeichen',
-        passwords_not_match: 'Passwörter stimmen nicht überein',
-        terms_of_use: 'Nutzungsbedingungen',
-        terms_desc: 'Ich habe die Nutzungsbedingungen gelesen und akzeptiere sie.',
-        privacy_policy: 'Datenschutzrichtlinie',
-        privacy_desc: 'Ich habe die Datenschutzrichtlinie gelesen.',
-        register_success: 'Registrierung erfolgreich!',
-        register_success_desc: 'Ihr Konto wurde erfolgreich erstellt.',
-        back: '← Zurück',
-        next: 'Weiter →',
-        complete: 'Abschließen',
-        step: 'Schritt',
-        home: 'Startseite',
-        new_reservation: 'Neue Reservierung',
-        account_settings: 'Kontoeinstellungen',
-        dashboard_overview: 'Übersicht Ihres Smart Home Mietsystems',
-        no_active_reservation: 'Keine aktive Reservierung',
-        no_reservation_desc: 'Erstellen Sie jetzt eine neue Reservierung.',
-        total_stays: 'Gesamtaufenthalte',
-        hours: 'Stunden',
-        hour_unit: 'Stunden',
-        avg_rating: 'Durchschnittsbewertung',
-        membership_level: 'Mitgliedschaftsstufe',
-        starter: 'Einsteiger',
-        silver: 'Silber',
-        gold: 'Gold',
-        full_name: 'Vollständiger Name',
-        back_dashboard: 'Zurück zum Dashboard',
-        select_location: 'Standort auswählen',
-        select_location_desc: 'Wählen Sie den passendsten Standort',
-        rooms: 'Zimmer',
-        available: 'Verfügbar',
-        occupied: 'Belegt',
-        select_datetime: 'Datum & Uhrzeit auswählen',
-        checkin_datetime: 'Check-in Datum & Uhrzeit',
-        checkout_datetime: 'Check-out Datum & Uhrzeit',
-        max_duration_warning: 'Maximale Dauer Warnung',
-        max_duration_desc: 'Maximaler Aufenthalt beträgt 24 Stunden.',
-        show_available_rooms: 'Verfügbare Zimmer anzeigen',
-        back_locations: 'Zurück zu Standorten',
-        select_room: 'Zimmer auswählen',
-        back_datetime: 'Zurück zur Datumsauswahl',
-        reservation_payment: 'Reservierung & Zahlung',
-        final_step: 'Letzter Schritt - Zahlungsdaten eingeben',
-        reservation_summary: 'Reservierungsübersicht',
-        room: 'Zimmer',
-        location: 'Standort',
-        checkin: 'Check-in',
-        checkout: 'Check-out',
-        guest_count: 'Anzahl der Gäste',
-        person: 'Person',
-        person_1: '1 Person',
-        person_2: '2 Personen',
-        person_3: '3 Personen',
-        person_4: '4 Personen',
-        extra_person: 'Zusätzliche Person',
-        total: 'Gesamt',
-        card_info: 'Karteninformationen',
-        demo_warning: 'Nur Demo - Keine echte Zahlung',
-        card_name: 'Name auf der Karte',
-        card_number: 'Kartennummer',
-        expiry_date: 'Ablaufdatum',
-        complete_payment: 'Zahlung abschließen',
-        back_room: 'Zurück zur Zimmerauswahl',
-        entry_ticket: 'Ihr Eintrittticket',
-        show_qr: 'Zeigen Sie diesen QR-Code an der Tür',
-        ticket_no: 'Ticket-Nr.',
-        go_to_control: 'Zur Zimmersteuerung',
-        room_control_panel: 'Zimmersteuerung',
-        lights: 'Beleuchtung',
-        main_lighting: 'Hauptbeleuchtung',
-        ac: 'Klimaanlage',
-        temp_control: 'Temperaturregelung',
-        temperature: 'Temperatur',
-        tv: 'Fernseher',
-        door_control: 'Türsteuerung',
-        door_desc: 'Mit Bluetooth / QR öffnen',
-        open_door: 'Tür öffnen',
-        secure_connection: 'Sichere Verbindung • Bluetooth LE unterstützt',
-        login_success: 'Anmeldung erfolgreich! Willkommen',
-        logout_success: 'Abgemeldet',
-        reservation_success: 'Ihre Reservierung wurde erstellt!',
-        fill_all_fields: 'Bitte füllen Sie alle Felder aus.',
-        tc_invalid: 'Ausweisnummer muss 11-stellig sein.',
-        tc_exists: 'Ein Konto mit dieser ID existiert bereits.',
-        password_requirements_not_met: 'Passwort erfüllt die Anforderungen nicht.',
-        username_taken: 'Dieser Benutzername ist bereits vergeben.',
-        accept_agreements: 'Sie müssen alle Vereinbarungen akzeptieren.',
-        login_failed: 'Ausweisnummer oder Passwort ist falsch.',
-        select_dates: 'Bitte wählen Sie Datum.',
-        past_date: 'Vergangenes Datum nicht wählbar.',
-        checkout_before_checkin: 'Check-out muss nach Check-in sein.',
-        max_24_hours: 'Maximaler Aufenthalt ist 24 Stunden.',
-        processing: 'Wird verarbeitet...',
-        payment_completed: 'Zahlung abgeschlossen ✓',
-        opening: 'Wird geöffnet...',
-        door_opened: 'Tür geöffnet!',
-        reservation_history: 'Reservierungsverlauf',
-        history_desc: 'Alle Ihre Reservierungen anzeigen und verwalten',
-        all: 'Alle',
-        active_reservations: 'Aktiv',
-        completed_reservations: 'Abgeschlossen',
-        cancelled_reservations: 'Storniert',
-        no_reservations: 'Keine Reservierungen',
-        no_reservations_desc: 'Sie haben keine Reservierungen in dieser Kategorie.',
-        cancel_reservation: 'Reservierung stornieren',
-        view_ticket: 'Ticket anzeigen',
-        room_control: 'Zimmersteuerung',
-        status_active: 'Aktiv',
-        status_completed: 'Abgeschlossen',
-        status_cancelled: 'Storniert',
-        cancel_confirm_title: 'Reservierung stornieren',
-        cancel_confirm_msg: 'Möchten Sie diese Reservierung wirklich stornieren?',
-        yes_cancel: 'Ja, stornieren',
-        no_go_back: 'Nein, zurück',
-        reservation_cancelled: 'Reservierung storniert',
-        cannot_cancel_past: 'Vergangene Reservierungen können nicht storniert werden'
-      }
+      tr: { app_title: 'Akıllı Ev Kiralama Sistemi', welcome_subtitle: 'Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi', smart_home: 'Akıllı Ev', login: 'Giriş Yap', read_text: 'Oku', close_text: 'Kapat', register: 'Üye Ol', logout: 'Çıkış Yap', access_account: 'Hesabınıza erişin', tc_id: 'T.C. Kimlik No', password: 'Şifre', no_account: 'Hesabınız yok mu? Üye olun', back_home: '← Ana sayfaya dön', personal_info: 'Kişisel Bilgiler', account_info: 'Hesap Bilgileri', agreements: 'Sözleşmeler', completed: 'Tamamlandı', first_name: 'Ad', last_name: 'Soyad', phone: 'Telefon', email: 'E-posta', gender: 'Cinsiyet', select: 'Seçiniz', male: 'Erkek', female: 'Kadın', prefer_not_say: 'Belirtmek İstemiyorum', username: 'Kullanıcı Adı', password_confirm: 'Şifre Tekrar', password_requirements: 'Şifre gereksinimleri:', req_length: 'En az 8 karakter', req_upper: 'En az 1 büyük harf', req_number: 'En az 1 rakam', req_special: 'En az 1 özel karakter', passwords_not_match: 'Şifreler eşleşmiyor', terms_of_use: 'Kullanım Şartları', terms_desc: 'Hizmet kullanım koşullarını okudum ve kabul ediyorum.', privacy_policy: 'KVKK & Gizlilik Politikası', privacy_desc: 'Kişisel verilerimin işlenmesine ilişkin aydınlatma metnini okudum.', register_success: 'Üyelik Başarılı!', register_success_desc: 'Hesabınız başarıyla oluşturuldu.', back: '← Geri', next: 'İleri →', complete: 'Tamamla', step: 'Adım', home: 'Ana Sayfa', new_reservation: 'Yeni Rezervasyon', account_settings: 'Hesap Ayarları', dashboard_overview: 'Akıllı ev kiralama sisteminize genel bakış', no_active_reservation: 'Aktif Rezervasyonunuz Yok', no_reservation_desc: 'Hemen yeni bir rezervasyon oluşturun.', total_stays: 'Toplam Konaklama', hours: 'Saat', hour_unit: 'saat', avg_rating: 'Puan Ortalaması', membership_level: 'Üyelik Seviyesi', starter: 'Başlangıç', silver: 'Gümüş', gold: 'Altın', full_name: 'Ad Soyad', back_dashboard: "Dashboard'a Dön", select_location: 'Konaklama Noktası Seçin', select_location_desc: 'Haritadan bir lokasyon seçin veya aşağıdaki listeden tercih yapın', click_pin: 'Haritadaki pinlere tıklayarak lokasyon seçin', location_list: 'Lokasyon Listesi', selected_location: 'Seçilen Lokasyon', continue: 'Devam Et', available: 'Müsait', occupied: 'Dolu', select_datetime: 'Tarih & Saat Seçin', checkin_datetime: 'Giriş Tarihi & Saati', checkout_datetime: 'Çıkış Tarihi & Saati', max_duration_warning: 'Maksimum Süre Uyarısı', max_duration_desc: 'Tek seferde maksimum 24 saat konaklama yapabilirsiniz.', show_available_rooms: 'Müsait Odaları Göster', back_locations: 'Lokasyonlara Dön', select_room: 'Oda Seçin', back_datetime: 'Tarih Seçimine Dön', reservation_payment: 'Rezervasyon & Ödeme', final_step: 'Son adım - Ödeme bilgilerinizi girin', reservation_summary: 'Rezervasyon Özeti', room: 'Oda', location: 'Lokasyon', checkin: 'Giriş', checkout: 'Çıkış', guest_count: 'Kişi Sayısı', person: 'Kişi', extra_person: 'Ek kişi', total: 'Toplam', card_info: 'Kart Bilgileri', demo_warning: 'Demo amaçlı - Gerçek ödeme yapılmaz', card_name: 'Kart Üzerindeki İsim', card_number: 'Kart Numarası', expiry_date: 'Son Kullanma', complete_payment: 'Ödemeyi Tamamla', back_room: 'Oda Seçimine Dön', entry_ticket: 'Giriş Biletiniz', show_qr: 'Bu QR kodu kapıda gösterin', ticket_no: 'Bilet No', go_to_control: 'Oda Kontrol Paneline Git', room_control_panel: 'Oda Kontrol Paneli', lights: 'Işıklar', main_lighting: 'Ana aydınlatma', ac: 'Klima', temp_control: 'Sıcaklık kontrolü', temperature: 'Sıcaklık', tv: 'Televizyon', door_control: 'Kapı Kontrolü', door_desc: 'Bluetooth / QR ile açın', open_door: 'Kapıyı Aç', secure_connection: 'Güvenli bağlantı • Bluetooth LE destekli', login_success: 'Giriş başarılı! Hoş geldiniz', logout_success: 'Çıkış yapıldı', reservation_success: 'Rezervasyonunuz başarıyla oluşturuldu!', fill_all_fields: 'Lütfen tüm alanları doldurun.', tc_invalid: 'T.C. Kimlik No 11 haneli olmalıdır.', tc_exists: 'Bu T.C. Kimlik No ile kayıtlı hesap var.', password_requirements_not_met: 'Şifre gereksinimlerini karşılamıyor.', username_taken: 'Bu kullanıcı adı zaten alınmış.', accept_agreements: 'Tüm sözleşmeleri kabul etmelisiniz.', login_failed: 'T.C. Kimlik No veya şifre hatalı.', select_dates: 'Lütfen tarih seçin.', past_date: 'Geçmiş tarih seçilemez.', checkout_before_checkin: 'Çıkış tarihi girişten sonra olmalı.', max_24_hours: 'Maksimum 24 saat konaklama yapılabilir.', processing: 'İşleniyor...', payment_completed: 'Ödeme Tamamlandı ✓', opening: 'Açılıyor...', door_opened: 'Kapı Açıldı!', reservation_history: 'Rezervasyon Geçmişi', history_desc: 'Tüm rezervasyonlarınızı görüntüleyin ve yönetin', all: 'Tümü', active_reservations: 'Aktif', completed_reservations: 'Tamamlanan', cancelled_reservations: 'İptal Edilen', no_reservations: 'Rezervasyon Bulunamadı', no_reservations_desc: 'Bu kategoride henüz rezervasyonunuz yok.', cancel_reservation: 'Rezervasyonu İptal Et', view_ticket: 'Bileti Görüntüle', status_active: 'Aktif', status_completed: 'Tamamlandı', status_cancelled: 'İptal Edildi', cancel_confirm_title: 'Rezervasyonu İptal Et', cancel_confirm_msg: 'Bu rezervasyonu iptal etmek istediğinizden emin misiniz?', yes_cancel: 'Evet, İptal Et', no_go_back: 'Hayır, Geri Dön', reservation_cancelled: 'Rezervasyon iptal edildi', select_location_first: 'Lütfen önce bir lokasyon seçin', find_nearest: 'Size En Yakın Noktayı Bulun', find_nearest_desc: 'Konumunuza göre en yakın konaklama noktasını öneririz', use_my_location: 'Konumumu Kullan', nearest_location: 'En Yakın Konaklama Noktası:', select_this: 'Bunu Seç', finding_location: 'Konum alınıyor...', location_found: 'Konum bulundu!', location_error: 'Konum alınamadı', km_away: 'km uzaklıkta', location_denied: 'Konum izni reddedildi' },
+      en: { app_title: 'Smart Home Rental System', welcome_subtitle: 'Instant booking, control and access to smart rooms', smart_home: 'Smart Home', login: 'Login', read_text: 'Read', close_text: 'Close', register: 'Sign Up', logout: 'Logout', access_account: 'Access your account', tc_id: 'ID Number', password: 'Password', no_account: "Don't have an account? Sign up", back_home: '← Back to home', personal_info: 'Personal Information', account_info: 'Account Information', agreements: 'Agreements', completed: 'Completed', first_name: 'First Name', last_name: 'Last Name', phone: 'Phone', email: 'Email', gender: 'Gender', select: 'Select', male: 'Male', female: 'Female', prefer_not_say: 'Prefer not to say', username: 'Username', password_confirm: 'Confirm Password', password_requirements: 'Password requirements:', req_length: 'At least 8 characters', req_upper: 'At least 1 uppercase', req_number: 'At least 1 number', req_special: 'At least 1 special character', passwords_not_match: 'Passwords do not match', terms_of_use: 'Terms of Use', terms_desc: 'I have read and accept the terms.', privacy_policy: 'Privacy Policy', privacy_desc: 'I have read the privacy policy.', register_success: 'Registration Successful!', register_success_desc: 'Your account has been created.', back: '← Back', next: 'Next →', complete: 'Complete', step: 'Step', home: 'Home', new_reservation: 'New Reservation', account_settings: 'Account Settings', dashboard_overview: 'Overview of your smart home rental', no_active_reservation: 'No Active Reservation', no_reservation_desc: 'Create a new reservation now.', total_stays: 'Total Stays', hours: 'Hours', hour_unit: 'hours', avg_rating: 'Average Rating', membership_level: 'Membership Level', starter: 'Starter', silver: 'Silver', gold: 'Gold', full_name: 'Full Name', back_dashboard: 'Back to Dashboard', select_location: 'Select Location', select_location_desc: 'Select a location from the map or list', click_pin: 'Click pins on map to select', location_list: 'Location List', selected_location: 'Selected Location', continue: 'Continue', available: 'Available', occupied: 'Occupied', select_datetime: 'Select Date & Time', checkin_datetime: 'Check-in Date & Time', checkout_datetime: 'Check-out Date & Time', max_duration_warning: 'Maximum Duration Warning', max_duration_desc: 'Maximum stay is 24 hours.', show_available_rooms: 'Show Available Rooms', back_locations: 'Back to Locations', select_room: 'Select Room', back_datetime: 'Back to Date Selection', reservation_payment: 'Reservation & Payment', final_step: 'Final step - Enter payment details', reservation_summary: 'Reservation Summary', room: 'Room', location: 'Location', checkin: 'Check-in', checkout: 'Check-out', guest_count: 'Guests', person: 'Person', extra_person: 'Extra person', total: 'Total', card_info: 'Card Information', demo_warning: 'Demo only - No real payment', card_name: 'Name on Card', card_number: 'Card Number', expiry_date: 'Expiry Date', complete_payment: 'Complete Payment', back_room: 'Back to Room Selection', entry_ticket: 'Your Entry Ticket', show_qr: 'Show this QR code at the door', ticket_no: 'Ticket No', go_to_control: 'Go to Room Control', room_control_panel: 'Room Control Panel', lights: 'Lights', main_lighting: 'Main lighting', ac: 'Air Conditioning', temp_control: 'Temperature control', temperature: 'Temperature', tv: 'Television', door_control: 'Door Control', door_desc: 'Open with Bluetooth / QR', open_door: 'Open Door', secure_connection: 'Secure connection • Bluetooth LE', login_success: 'Login successful! Welcome', logout_success: 'Logged out', reservation_success: 'Your reservation has been created!', fill_all_fields: 'Please fill in all fields.', tc_invalid: 'ID must be 11 digits.', tc_exists: 'Account with this ID exists.', password_requirements_not_met: 'Password does not meet requirements.', username_taken: 'Username already taken.', accept_agreements: 'You must accept all agreements.', login_failed: 'ID or password incorrect.', select_dates: 'Please select dates.', past_date: 'Cannot select past date.', checkout_before_checkin: 'Check-out must be after check-in.', max_24_hours: 'Maximum stay is 24 hours.', processing: 'Processing...', payment_completed: 'Payment Completed ✓', opening: 'Opening...', door_opened: 'Door Opened!', reservation_history: 'Reservation History', history_desc: 'View and manage your reservations', all: 'All', active_reservations: 'Active', completed_reservations: 'Completed', cancelled_reservations: 'Cancelled', no_reservations: 'No Reservations', no_reservations_desc: 'No reservations in this category.', cancel_reservation: 'Cancel Reservation', view_ticket: 'View Ticket', status_active: 'Active', status_completed: 'Completed', status_cancelled: 'Cancelled', cancel_confirm_title: 'Cancel Reservation', cancel_confirm_msg: 'Are you sure you want to cancel?', yes_cancel: 'Yes, Cancel', no_go_back: 'No, Go Back', reservation_cancelled: 'Reservation cancelled', select_location_first: 'Please select a location first', find_nearest: 'Find Nearest Location', find_nearest_desc: 'We recommend the nearest accommodation based on your location', use_my_location: 'Use My Location', nearest_location: 'Nearest Accommodation:', select_this: 'Select This', finding_location: 'Getting location...', location_found: 'Location found!', location_error: 'Could not get location', km_away: 'km away', location_denied: 'Location permission denied' },
+      de: { app_title: 'Smart Home Mietsystem', welcome_subtitle: 'Sofortige Buchung und Zugang zu Smart Rooms', smart_home: 'Smart Home', login: 'Anmelden', read_text: 'Lesen', close_text: 'Schließen', register: 'Registrieren', logout: 'Abmelden', access_account: 'Auf Ihr Konto zugreifen', tc_id: 'Ausweisnummer', password: 'Passwort', no_account: 'Kein Konto? Registrieren', back_home: '← Zurück', personal_info: 'Persönliche Daten', account_info: 'Kontoinformationen', agreements: 'Vereinbarungen', completed: 'Abgeschlossen', first_name: 'Vorname', last_name: 'Nachname', phone: 'Telefon', email: 'E-Mail', gender: 'Geschlecht', select: 'Auswählen', male: 'Männlich', female: 'Weiblich', prefer_not_say: 'Keine Angabe', username: 'Benutzername', password_confirm: 'Passwort bestätigen', password_requirements: 'Passwortanforderungen:', req_length: 'Mindestens 8 Zeichen', req_upper: 'Mindestens 1 Großbuchstabe', req_number: 'Mindestens 1 Zahl', req_special: 'Mindestens 1 Sonderzeichen', passwords_not_match: 'Passwörter stimmen nicht überein', terms_of_use: 'Nutzungsbedingungen', terms_desc: 'Ich akzeptiere die Nutzungsbedingungen.', privacy_policy: 'Datenschutzrichtlinie', privacy_desc: 'Ich habe die Datenschutzrichtlinie gelesen.', register_success: 'Registrierung erfolgreich!', register_success_desc: 'Ihr Konto wurde erstellt.', back: '← Zurück', next: 'Weiter →', complete: 'Abschließen', step: 'Schritt', home: 'Startseite', new_reservation: 'Neue Reservierung', account_settings: 'Kontoeinstellungen', dashboard_overview: 'Übersicht Ihres Smart Home Mietsystems', no_active_reservation: 'Keine aktive Reservierung', no_reservation_desc: 'Erstellen Sie jetzt eine Reservierung.', total_stays: 'Gesamtaufenthalte', hours: 'Stunden', hour_unit: 'Stunden', avg_rating: 'Durchschnittsbewertung', membership_level: 'Mitgliedschaftsstufe', starter: 'Einsteiger', silver: 'Silber', gold: 'Gold', full_name: 'Vollständiger Name', back_dashboard: 'Zurück zum Dashboard', select_location: 'Standort auswählen', select_location_desc: 'Wählen Sie einen Standort aus der Karte oder Liste', click_pin: 'Klicken Sie auf die Pins', location_list: 'Standortliste', selected_location: 'Ausgewählter Standort', continue: 'Weiter', available: 'Verfügbar', occupied: 'Belegt', select_datetime: 'Datum & Uhrzeit', checkin_datetime: 'Check-in Datum & Uhrzeit', checkout_datetime: 'Check-out Datum & Uhrzeit', max_duration_warning: 'Maximale Dauer Warnung', max_duration_desc: 'Maximaler Aufenthalt ist 24 Stunden.', show_available_rooms: 'Verfügbare Zimmer anzeigen', back_locations: 'Zurück zu Standorten', select_room: 'Zimmer auswählen', back_datetime: 'Zurück zur Datumsauswahl', reservation_payment: 'Reservierung & Zahlung', final_step: 'Letzter Schritt - Zahlungsdaten', reservation_summary: 'Reservierungsübersicht', room: 'Zimmer', location: 'Standort', checkin: 'Check-in', checkout: 'Check-out', guest_count: 'Gäste', person: 'Person', extra_person: 'Zusätzliche Person', total: 'Gesamt', card_info: 'Karteninformationen', demo_warning: 'Nur Demo - Keine echte Zahlung', card_name: 'Name auf der Karte', card_number: 'Kartennummer', expiry_date: 'Ablaufdatum', complete_payment: 'Zahlung abschließen', back_room: 'Zurück zur Zimmerauswahl', entry_ticket: 'Ihr Eintrittticket', show_qr: 'Zeigen Sie diesen QR-Code', ticket_no: 'Ticket-Nr.', go_to_control: 'Zur Zimmersteuerung', room_control_panel: 'Zimmersteuerung', lights: 'Beleuchtung', main_lighting: 'Hauptbeleuchtung', ac: 'Klimaanlage', temp_control: 'Temperaturregelung', temperature: 'Temperatur', tv: 'Fernseher', door_control: 'Türsteuerung', door_desc: 'Mit Bluetooth / QR öffnen', open_door: 'Tür öffnen', secure_connection: 'Sichere Verbindung • Bluetooth LE', login_success: 'Anmeldung erfolgreich!', logout_success: 'Abgemeldet', reservation_success: 'Ihre Reservierung wurde erstellt!', fill_all_fields: 'Bitte alle Felder ausfüllen.', tc_invalid: 'Ausweisnummer muss 11-stellig sein.', tc_exists: 'Ein Konto mit dieser ID existiert.', password_requirements_not_met: 'Passwort erfüllt nicht die Anforderungen.', username_taken: 'Benutzername bereits vergeben.', accept_agreements: 'Sie müssen alle Vereinbarungen akzeptieren.', login_failed: 'ID oder Passwort falsch.', select_dates: 'Bitte Datum wählen.', past_date: 'Vergangenes Datum nicht wählbar.', checkout_before_checkin: 'Check-out muss nach Check-in sein.', max_24_hours: 'Maximaler Aufenthalt ist 24 Stunden.', processing: 'Wird verarbeitet...', payment_completed: 'Zahlung abgeschlossen ✓', opening: 'Wird geöffnet...', door_opened: 'Tür geöffnet!', reservation_history: 'Reservierungsverlauf', history_desc: 'Alle Reservierungen anzeigen', all: 'Alle', active_reservations: 'Aktiv', completed_reservations: 'Abgeschlossen', cancelled_reservations: 'Storniert', no_reservations: 'Keine Reservierungen', no_reservations_desc: 'Keine Reservierungen in dieser Kategorie.', cancel_reservation: 'Reservierung stornieren', view_ticket: 'Ticket anzeigen', status_active: 'Aktiv', status_completed: 'Abgeschlossen', status_cancelled: 'Storniert', cancel_confirm_title: 'Reservierung stornieren', cancel_confirm_msg: 'Möchten Sie wirklich stornieren?', yes_cancel: 'Ja, stornieren', no_go_back: 'Nein, zurück', reservation_cancelled: 'Reservierung storniert', select_location_first: 'Bitte zuerst einen Standort wählen', find_nearest: 'Nächsten Standort finden', find_nearest_desc: 'Wir empfehlen die nächstgelegene Unterkunft basierend auf Ihrem Standort', use_my_location: 'Meinen Standort verwenden', nearest_location: 'Nächste Unterkunft:', select_this: 'Diesen auswählen', finding_location: 'Standort wird ermittelt...', location_found: 'Standort gefunden!', location_error: 'Standort konnte nicht ermittelt werden', km_away: 'km entfernt', location_denied: 'Standortberechtigung verweigert' }
     };
 
     let currentLang = localStorage.getItem('smartHome_lang') || 'tr';
     let isDarkMode = localStorage.getItem('smartHome_darkMode') === 'true';
 
-    // ==================== DARK MODE ====================
-    function toggleDarkMode() {
-      isDarkMode = !isDarkMode;
-      localStorage.setItem('smartHome_darkMode', isDarkMode);
-      applyDarkMode();
-    }
-    
-    function applyDarkMode() {
-      const html = document.documentElement;
-      const themeIcon = document.getElementById('theme-icon');
-      
-      if (isDarkMode) {
-        html.classList.add('dark');
-        if (themeIcon) themeIcon.textContent = '☀️';
-      } else {
-        html.classList.remove('dark');
-        if (themeIcon) themeIcon.textContent = '🌙';
-      }
-    }
-    
-    function t(key) { return translations[currentLang][key] || translations['tr'][key] || key; }
-    
-    function setLanguage(lang) {
-      currentLang = lang;
-      localStorage.setItem('smartHome_lang', lang);
-      updateAllTranslations();
-      document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.lang === lang);
-      });
-      document.documentElement.lang = lang;
-    }
-    
-    function updateAllTranslations() {
-      // Normal text çevirileri
-      document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-      // Placeholder çevirileri
-      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
-      // Select option çevirileri
-      document.querySelectorAll('[data-i18n-opt]').forEach(opt => { opt.textContent = t(opt.dataset.i18nOpt); });
-      // Kişi sayısı çevirileri
-      document.querySelectorAll('[data-i18n-guest]').forEach(opt => {
-        opt.textContent = t('person_' + opt.dataset.i18nGuest);
-      });
-      
-      document.title = t('app_title');
-      
-      const stepLabel = document.getElementById('step-label');
-      if (stepLabel) stepLabel.textContent = `${t('step')} ${currentStep}/4`;
-      
-      const btnNext = document.getElementById('btn-next');
-      if (btnNext) btnNext.textContent = currentStep === 3 ? t('complete') : t('next');
-      
-      const btnPrev = document.getElementById('btn-prev');
-      if (btnPrev) btnPrev.textContent = t('back');
-      
-      const user = getCurrentUser();
-      if (user) {
-        const welcomeTitle = document.getElementById('welcome-title');
-        if (welcomeTitle) welcomeTitle.textContent = `${user.name}, ${t('home')}! 👋`;
-      }
-      
-      // Üyelik seviyesi çevirisi
-      updateMembershipLevel();
-    }
-    
-    function updateMembershipLevel() {
-      const user = getCurrentUser();
-      if (!user) return;
-      const reservations = getUserReservations(user.tc);
-      const statLevel = document.getElementById('stat-level');
-      if (statLevel) {
-        if (reservations.length >= 10) statLevel.textContent = t('gold');
-        else if (reservations.length >= 5) statLevel.textContent = t('silver');
-        else statLevel.textContent = t('starter');
-      }
-    }
+    const locationData = {
+      kirklareli: { id: 'kirklareli', name: 'E80 Avrupa Otoyolu - Kırklareli', rooms: 8, available: 5, lat: 41.7355, lng: 27.2253 },
+      bolu: { id: 'bolu', name: 'E89 Otoyolu - Bolu-Ankara', rooms: 12, available: 8, lat: 40.7356, lng: 31.6062 },
+      mersin: { id: 'mersin', name: 'E90 Otoyolu - Mersin-Adana', rooms: 10, available: 7, lat: 36.8121, lng: 34.6415 },
+      izmir: { id: 'izmir', name: 'E96 Otoyolu - İzmir-Uşak', rooms: 6, available: 4, lat: 38.4192, lng: 27.1287 },
+      erzurum: { id: 'erzurum', name: 'E97 Otoyolu - Erzurum', rooms: 8, available: 6, lat: 39.9052, lng: 41.2658 },
+      sivas: { id: 'sivas', name: 'E88 Otoyolu - Sivas', rooms: 10, available: 7, lat: 39.7477, lng: 37.0179 }
+    };
 
-    // ==================== STATE ====================
-    const defaultConfig = { app_title: 'Akıllı Ev Kiralama Sistemi', welcome_subtitle: 'Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi', logo_url: '' };
+    let leafletMap = null;
+    let mapMarkers = {};
+
     let currentBooking = { locationId: null, locationName: null, checkin: null, checkout: null, room: null, guests: 2, price: 0, hours: 0 };
     let currentStep = 1;
+    let selectedLocationId = null;
+    let currentFilter = 'all';
+    let cancelResId = null;
 
-    // ==================== STORAGE ====================
+    // Dark Mode
+    function toggleDarkMode() { isDarkMode = !isDarkMode; localStorage.setItem('smartHome_darkMode', isDarkMode); applyDarkMode(); }
+    function applyDarkMode() { document.documentElement.classList.toggle('dark', isDarkMode); const icon = document.getElementById('theme-icon'); if (icon) icon.textContent = isDarkMode ? '☀️' : '🌙'; }
+
+    // Translations
+    function t(key) { return translations[currentLang][key] || translations['tr'][key] || key; }
+    function setLanguage(lang) { currentLang = lang; localStorage.setItem('smartHome_lang', lang); updateAllTranslations(); document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang)); }
+    function updateAllTranslations() { document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n)); document.querySelectorAll('[data-i18n-opt]').forEach(opt => opt.textContent = t(opt.dataset.i18nOpt)); document.title = t('app_title'); const user = getCurrentUser(); if (user) { const wt = document.getElementById('welcome-title'); if (wt) wt.textContent = `${user.name}, ${t('home')}! 👋`; } }
+
+    // Storage
     function getUsers() { return JSON.parse(localStorage.getItem('smartHome_users') || '[]'); }
     function saveUsers(users) { localStorage.setItem('smartHome_users', JSON.stringify(users)); }
     function getCurrentUser() { return JSON.parse(localStorage.getItem('smartHome_currentUser') || 'null'); }
@@ -1046,490 +899,211 @@
     function clearCurrentUser() { localStorage.removeItem('smartHome_currentUser'); }
     function getUserReservations(tc) { return JSON.parse(localStorage.getItem('smartHome_reservations') || '[]').filter(r => r.userTc === tc); }
     function saveReservation(res) { const all = JSON.parse(localStorage.getItem('smartHome_reservations') || '[]'); all.push(res); localStorage.setItem('smartHome_reservations', JSON.stringify(all)); }
+    function updateReservation(id, updates) { let all = JSON.parse(localStorage.getItem('smartHome_reservations') || '[]'); all = all.map(r => r.id === id ? {...r, ...updates} : r); localStorage.setItem('smartHome_reservations', JSON.stringify(all)); }
+    function saveAppState() { localStorage.setItem('smartHome_appState', JSON.stringify({ currentScreen: getCurrentScreen(), selectedLocationId, currentBooking })); }
+    function restoreAppState() { const s = localStorage.getItem('smartHome_appState'); if (s) { const state = JSON.parse(s); if (state.selectedLocationId) { selectedLocationId = state.selectedLocationId; updateLocationSelection(selectedLocationId); } if (state.currentBooking) currentBooking = state.currentBooking; return state.currentScreen; } return null; }
+    function getCurrentScreen() { for (const s of document.querySelectorAll('.screen')) { if (!s.classList.contains('hidden')) return s.id.replace('screen-', ''); } return 'welcome'; }
 
-    // ==================== TOAST ====================
-    function showToast(message, type = 'success') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = `toast ${type === 'success' ? 'bg-[#30C48D]' : type === 'error' ? 'bg-[#FF4B5C]' : 'bg-[#4F8EF7]'} text-white px-6 py-3 rounded-xl shadow-lg font-medium`;
-      toast.textContent = message;
-      container.appendChild(toast);
-      setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
-    }
+    // Toast
+    function showToast(msg, type = 'success') { const c = document.getElementById('toast-container'); const t = document.createElement('div'); t.className = `toast ${type === 'success' ? 'bg-[#30C48D]' : type === 'error' ? 'bg-[#FF4B5C]' : 'bg-[#4F8EF7]'} text-white px-6 py-3 rounded-xl shadow-lg font-medium`; t.textContent = msg; c.appendChild(t); setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3000); }
 
-    // ==================== NAVIGATION ====================
-    function showScreen(screenId) {
-      document.querySelectorAll('.screen').forEach(s => { s.classList.add('hidden'); s.classList.remove('flex'); });
-      const target = document.getElementById('screen-' + screenId);
-      if (target) { target.classList.remove('hidden'); if (['welcome', 'login', 'register'].includes(screenId)) target.classList.add('flex'); }
-      if (screenId === 'dashboard') updateDashboard();
-    }
+    // Navigation
+    function showScreen(id) { document.querySelectorAll('.screen').forEach(s => { s.classList.add('hidden'); s.classList.remove('flex'); }); const target = document.getElementById('screen-' + id); if (target) { target.classList.remove('hidden'); if (['welcome', 'login', 'register'].includes(id)) target.classList.add('flex'); } if (id === 'dashboard') updateDashboard(); if (id === 'locations') { setTimeout(() => { initLeafletMap(); if (selectedLocationId) updateLocationSelection(selectedLocationId); }, 100); } saveAppState(); }
 
-    // ==================== AUTH ====================
-    function handleLogin(event) {
-      event.preventDefault();
-      const tc = document.getElementById('login-tc').value.trim();
-      const password = document.getElementById('login-password').value;
-      const errorDiv = document.getElementById('login-error');
+    // Auth
+    function handleLogin(e) { e.preventDefault(); const tc = document.getElementById('login-tc').value.trim(); const pw = document.getElementById('login-password').value; const err = document.getElementById('login-error'); if (tc.length !== 11) { err.textContent = t('tc_invalid'); err.classList.remove('hidden'); return; } const user = getUsers().find(u => u.tc === tc && u.password === pw); if (!user) { err.textContent = t('login_failed'); err.classList.remove('hidden'); return; } err.classList.add('hidden'); setCurrentUser(user); showToast(t('login_success') + ', ' + user.name); const saved = restoreAppState(); if (saved && !['welcome', 'login', 'register'].includes(saved)) showScreen(saved); else showScreen('dashboard'); }
+    function handleLogout() { clearCurrentUser(); localStorage.removeItem('smartHome_appState'); showToast(t('logout_success'), 'info'); showScreen('welcome'); }
+
+    // Register
+    function validateStep(step) { const err = document.getElementById('register-error'); err.classList.add('hidden'); if (step === 1) { const name = document.getElementById('reg-name').value.trim(); const surname = document.getElementById('reg-surname').value.trim(); const phone = document.getElementById('reg-phone').value.trim(); const email = document.getElementById('reg-email').value.trim(); const tc = document.getElementById('reg-tc').value.trim(); const gender = document.getElementById('reg-gender').value; if (!name || !surname || !phone || !email || !tc || !gender) { err.textContent = t('fill_all_fields'); err.classList.remove('hidden'); return false; } if (tc.length !== 11 || !/^\d+$/.test(tc)) { err.textContent = t('tc_invalid'); err.classList.remove('hidden'); return false; } if (getUsers().some(u => u.tc === tc)) { err.textContent = t('tc_exists'); err.classList.remove('hidden'); return false; } document.getElementById('reg-username').value = (name + '.' + surname).toLowerCase().replace(/[^a-z.]/g, ''); } if (step === 2) { const un = document.getElementById('reg-username').value.trim(); const pw = document.getElementById('reg-password').value; const pwc = document.getElementById('reg-password-confirm').value; if (!un || !pw || !pwc) { err.textContent = t('fill_all_fields'); err.classList.remove('hidden'); return false; } if (!(pw.length >= 8 && /[A-Z]/.test(pw) && /\d/.test(pw) && /[!@#$%^&*(),.?":{}|<>]/.test(pw))) { err.textContent = t('password_requirements_not_met'); err.classList.remove('hidden'); return false; } if (pw !== pwc) { err.textContent = t('passwords_not_match'); err.classList.remove('hidden'); return false; } if (getUsers().some(u => u.username === un)) { err.textContent = t('username_taken'); err.classList.remove('hidden'); return false; } } if (step === 3) { if (!document.getElementById('agree-terms').checked || !document.getElementById('agree-kvkk').checked) { document.getElementById('agreement-error').textContent = t('accept_agreements'); document.getElementById('agreement-error').classList.remove('hidden'); return false; } document.getElementById('agreement-error').classList.add('hidden'); const users = getUsers(); users.push({ name: document.getElementById('reg-name').value.trim(), surname: document.getElementById('reg-surname').value.trim(), phone: document.getElementById('reg-phone').value.trim(), email: document.getElementById('reg-email').value.trim(), tc: document.getElementById('reg-tc').value.trim(), gender: document.getElementById('reg-gender').value, username: document.getElementById('reg-username').value.trim(), password: document.getElementById('reg-password').value, createdAt: new Date().toISOString() }); saveUsers(users); } return true; }
+    function nextStep() { if (currentStep < 4) { if (!validateStep(currentStep)) return; document.getElementById('register-step-' + currentStep).classList.add('hidden'); currentStep++; document.getElementById('register-step-' + currentStep).classList.remove('hidden'); updateProgressBar(); } }
+    function prevStep() { if (currentStep > 1) { document.getElementById('register-step-' + currentStep).classList.add('hidden'); currentStep--; document.getElementById('register-step-' + currentStep).classList.remove('hidden'); updateProgressBar(); } }
+    function updateProgressBar() { document.getElementById('progress-bar').style.width = (currentStep / 4) * 100 + '%'; document.getElementById('step-label').textContent = `${t('step')} ${currentStep}/4`; const titles = [t('personal_info'), t('account_info'), t('agreements'), t('completed')]; document.getElementById('step-title').textContent = titles[currentStep - 1]; document.getElementById('btn-prev').classList.toggle('hidden', currentStep === 1); document.getElementById('register-nav').classList.toggle('hidden', currentStep === 4); document.getElementById('btn-next').textContent = currentStep === 3 ? t('complete') : t('next'); }
+
+    // Dashboard
+    function updateDashboard() { const user = getCurrentUser(); if (!user) { showScreen('welcome'); return; } const i = (user.name[0] + user.surname[0]).toUpperCase(); document.getElementById('user-avatar').textContent = i; document.getElementById('mobile-avatar').textContent = i; document.getElementById('user-fullname').textContent = user.name + ' ' + user.surname; document.getElementById('user-username').textContent = '@' + user.username; document.getElementById('welcome-title').textContent = `${user.name}, ${t('home')}! 👋`; document.getElementById('settings-name').value = user.name + ' ' + user.surname; document.getElementById('settings-email').value = user.email; document.getElementById('settings-phone').value = user.phone; const res = getUserReservations(user.tc); document.getElementById('stat-total').textContent = res.length; document.getElementById('stat-hours').textContent = res.reduce((s, r) => s + (r.hours || 0), 0); const lvl = document.getElementById('stat-level'); if (res.length >= 10) lvl.textContent = t('gold'); else if (res.length >= 5) lvl.textContent = t('silver'); else lvl.textContent = t('starter'); }
+    function showDashboardSection(id) { document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('hidden')); const target = document.getElementById('dashboard-' + id); if (target) target.classList.remove('hidden'); if (id === 'history') loadReservations(); if (window.innerWidth < 768) toggleSidebar(); }
+    function setActiveMenu(el) { document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active')); el.classList.add('active'); }
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden'); }
+
+    // Leaflet Map Initialization
+    function initLeafletMap() {
+      if (leafletMap) return;
+      const mapContainer = document.getElementById('leaflet-map');
+      if (!mapContainer) return;
       
-      if (tc.length !== 11) { errorDiv.textContent = t('tc_invalid'); errorDiv.classList.remove('hidden'); return; }
+      leafletMap = L.map('leaflet-map', { zoomControl: true, scrollWheelZoom: true, doubleClickZoom: true, touchZoom: true }).setView([39.0, 35.0], 6);
       
-      const user = getUsers().find(u => u.tc === tc && u.password === password);
-      if (!user) { errorDiv.textContent = t('login_failed'); errorDiv.classList.remove('hidden'); return; }
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18, minZoom: 5 }).addTo(leafletMap);
       
-      errorDiv.classList.add('hidden');
-      setCurrentUser(user);
-      showToast(t('login_success') + ', ' + user.name);
-      showScreen('dashboard');
-    }
-
-    function handleLogout() { clearCurrentUser(); showToast(t('logout_success'), 'info'); showScreen('welcome'); }
-
-    // ==================== REGISTER ====================
-    function validateStep(step) {
-      const errorDiv = document.getElementById('register-error');
-      errorDiv.classList.add('hidden');
+      leafletMap.setMaxBounds([[35.0, 25.0], [43.0, 45.0]]);
       
-      if (step === 1) {
-        const name = document.getElementById('reg-name').value.trim();
-        const surname = document.getElementById('reg-surname').value.trim();
-        const phone = document.getElementById('reg-phone').value.trim();
-        const email = document.getElementById('reg-email').value.trim();
-        const tc = document.getElementById('reg-tc').value.trim();
-        const gender = document.getElementById('reg-gender').value;
+      Object.keys(locationData).forEach(id => {
+        const loc = locationData[id];
+        const markerIcon = L.divIcon({ className: '', html: `<div class="custom-marker" id="marker-${id}"><span>🛣️</span></div>`, iconSize: [44, 44], iconAnchor: [22, 44], popupAnchor: [0, -44] });
         
-        if (!name || !surname || !phone || !email || !tc || !gender) { errorDiv.textContent = t('fill_all_fields'); errorDiv.classList.remove('hidden'); return false; }
-        if (tc.length !== 11 || !/^\d+$/.test(tc)) { errorDiv.textContent = t('tc_invalid'); errorDiv.classList.remove('hidden'); return false; }
-        if (getUsers().some(u => u.tc === tc)) { errorDiv.textContent = t('tc_exists'); errorDiv.classList.remove('hidden'); return false; }
-        document.getElementById('reg-username').value = (name + '.' + surname).toLowerCase().replace(/[^a-z.]/g, '');
-      }
-      
-      if (step === 2) {
-        const username = document.getElementById('reg-username').value.trim();
-        const password = document.getElementById('reg-password').value;
-        const passwordConfirm = document.getElementById('reg-password-confirm').value;
+        const marker = L.marker([loc.lat, loc.lng], { icon: markerIcon }).addTo(leafletMap);
         
-        if (!username || !password || !passwordConfirm) { errorDiv.textContent = t('fill_all_fields'); errorDiv.classList.remove('hidden'); return false; }
-        if (!(password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password) && /[!@#$%^&*(),.?":{}|<>]/.test(password))) {
-          errorDiv.textContent = t('password_requirements_not_met'); errorDiv.classList.remove('hidden'); return false;
-        }
-        if (password !== passwordConfirm) { errorDiv.textContent = t('passwords_not_match'); errorDiv.classList.remove('hidden'); return false; }
-        if (getUsers().some(u => u.username === username)) { errorDiv.textContent = t('username_taken'); errorDiv.classList.remove('hidden'); return false; }
-      }
-      
-      if (step === 3) {
-        if (!document.getElementById('agree-terms').checked || !document.getElementById('agree-kvkk').checked) {
-          document.getElementById('agreement-error').textContent = t('accept_agreements');
-          document.getElementById('agreement-error').classList.remove('hidden');
-          return false;
-        }
-        document.getElementById('agreement-error').classList.add('hidden');
+        const popupContent = `<div class="popup-content"><h4>${loc.name.split(' - ')[0]}</h4><p>${loc.name.split(' - ')[1] || ''}</p><button class="popup-btn" onclick="selectLocationFromMap('${id}')">${t('continue')}</button></div>`;
+        marker.bindPopup(popupContent, { closeButton: false, offset: [0, -10] });
         
-        const newUser = {
-          name: document.getElementById('reg-name').value.trim(),
-          surname: document.getElementById('reg-surname').value.trim(),
-          phone: document.getElementById('reg-phone').value.trim(),
-          email: document.getElementById('reg-email').value.trim(),
-          tc: document.getElementById('reg-tc').value.trim(),
-          gender: document.getElementById('reg-gender').value,
-          username: document.getElementById('reg-username').value.trim(),
-          password: document.getElementById('reg-password').value,
-          createdAt: new Date().toISOString()
-        };
-        const users = getUsers(); users.push(newUser); saveUsers(users);
-      }
-      return true;
-    }
-
-    function nextStep() {
-      if (currentStep < 4) {
-        if (!validateStep(currentStep)) return;
-        document.getElementById('register-step-' + currentStep).classList.add('hidden');
-        currentStep++;
-        document.getElementById('register-step-' + currentStep).classList.remove('hidden');
-        updateProgressBar();
-      }
-    }
-
-    function prevStep() {
-      if (currentStep > 1) {
-        document.getElementById('register-step-' + currentStep).classList.add('hidden');
-        currentStep--;
-        document.getElementById('register-step-' + currentStep).classList.remove('hidden');
-        updateProgressBar();
-      }
-    }
-
-    function updateProgressBar() {
-      document.getElementById('progress-bar').style.width = (currentStep / 4) * 100 + '%';
-      document.getElementById('step-label').textContent = `${t('step')} ${currentStep}/4`;
-      const titles = [t('personal_info'), t('account_info'), t('agreements'), t('completed')];
-      document.getElementById('step-title').textContent = titles[currentStep - 1];
-      document.getElementById('btn-prev').classList.toggle('hidden', currentStep === 1);
-      document.getElementById('register-nav').classList.toggle('hidden', currentStep === 4);
-      document.getElementById('btn-next').textContent = currentStep === 3 ? t('complete') : t('next');
-    }
-
-    // ==================== DASHBOARD ====================
-    function updateDashboard() {
-      const user = getCurrentUser();
-      if (!user) { showScreen('welcome'); return; }
-      
-      const initials = (user.name[0] + user.surname[0]).toUpperCase();
-      document.getElementById('user-avatar').textContent = initials;
-      document.getElementById('mobile-avatar').textContent = initials;
-      document.getElementById('user-fullname').textContent = user.name + ' ' + user.surname;
-      document.getElementById('user-username').textContent = '@' + user.username;
-      document.getElementById('welcome-title').textContent = `${user.name}, ${t('home')}! 👋`;
-      document.getElementById('settings-name').value = user.name + ' ' + user.surname;
-      document.getElementById('settings-email').value = user.email;
-      document.getElementById('settings-phone').value = user.phone;
-      
-      const reservations = getUserReservations(user.tc);
-      document.getElementById('stat-total').textContent = reservations.length;
-      document.getElementById('stat-hours').textContent = reservations.reduce((sum, r) => sum + (r.hours || 0), 0);
-      updateMembershipLevel();
-    }
-
-    function showDashboardSection(sectionId) {
-      document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('hidden'));
-      const target = document.getElementById('dashboard-' + sectionId);
-      if (target) target.classList.remove('hidden');
-      if (sectionId === 'history') loadReservations();
-      if (window.innerWidth < 768) toggleSidebar();
-    }
-
-    function setActiveMenu(element) {
-      document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
-      element.classList.add('active');
-    }
-
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('-translate-x-full');
-      document.getElementById('sidebar-overlay').classList.toggle('hidden');
-    }
-
-    // ==================== BOOKING ====================
-    function selectLocation(id, name) {
-      currentBooking.locationId = id; currentBooking.locationName = name;
-      document.getElementById('datetime-location').textContent = name;
-      showScreen('datetime');
-    }
-
-    function validateDateTime() {
-      const checkin = document.getElementById('checkin').value;
-      const checkout = document.getElementById('checkout').value;
-      const errorDiv = document.getElementById('datetime-error');
-      
-      if (!checkin || !checkout) { errorDiv.textContent = t('select_dates'); errorDiv.classList.remove('hidden'); return; }
-      
-      const checkinDate = new Date(checkin), checkoutDate = new Date(checkout), now = new Date();
-      if (checkinDate < now) { errorDiv.textContent = t('past_date'); errorDiv.classList.remove('hidden'); return; }
-      if (checkoutDate <= checkinDate) { errorDiv.textContent = t('checkout_before_checkin'); errorDiv.classList.remove('hidden'); return; }
-      
-      const diffHours = (checkoutDate - checkinDate) / (1000 * 60 * 60);
-      if (diffHours > 24) { errorDiv.textContent = t('max_24_hours'); errorDiv.classList.remove('hidden'); return; }
-      
-      errorDiv.classList.add('hidden');
-      currentBooking.checkin = checkin; currentBooking.checkout = checkout; currentBooking.hours = Math.ceil(diffHours);
-      document.getElementById('rooms-info').textContent = `${currentBooking.locationName} • ${formatDate(checkin)}`;
-      generateRooms();
-      showScreen('rooms');
-    }
-
-    function generateRooms() {
-      const grid = document.getElementById('rooms-grid');
-      const occupied = [3, 5, 8, 11];
-      grid.innerHTML = '';
-      
-      for (let i = 1; i <= 12; i++) {
-        const isOcc = occupied.includes(i);
-        grid.innerHTML += isOcc
-          ? `<div class="room-card disabled bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg text-center border-2 border-[#FF4B5C]/20"><div class="w-14 h-14 bg-[#FF4B5C]/10 rounded-xl flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🏠</span></div><p class="font-bold text-gray-400">${t('room')} #${i}</p><span class="text-xs px-2 py-1 bg-[#FF4B5C]/10 text-[#FF4B5C] rounded-full">${t('occupied')}</span></div>`
-          : `<button onclick="selectRoom(${i})" class="room-card bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg text-center border-2 border-transparent hover:border-[#30C48D]"><div class="w-14 h-14 bg-[#30C48D]/10 rounded-xl flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🏠</span></div><p class="font-bold text-gray-800 dark:text-white">${t('room')} #${i}</p><span class="text-xs px-2 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full">${t('available')}</span></button>`;
-      }
-    }
-
-    function selectRoom(roomNumber) {
-      currentBooking.room = roomNumber;
-      document.getElementById('summary-room').textContent = '#' + roomNumber;
-      document.getElementById('summary-location').textContent = currentBooking.locationName;
-      document.getElementById('summary-checkin').textContent = formatDateTime(currentBooking.checkin);
-      document.getElementById('summary-checkout').textContent = formatDateTime(currentBooking.checkout);
-      updatePrice();
-      showScreen('payment');
-    }
-
-    function updatePrice() {
-      const guests = parseInt(document.getElementById('guests').value);
-      currentBooking.guests = guests;
-      const hours = currentBooking.hours || 1;
-      const basePrice = hours * 50;
-      const extraGuests = Math.max(0, guests - 1);
-      const extraPrice = extraGuests * 25;
-      const total = basePrice + extraPrice;
-      currentBooking.price = total;
-      
-      document.getElementById('price-hours').textContent = hours;
-      document.getElementById('price-base').textContent = '₺' + basePrice;
-      document.getElementById('price-extra-row').classList.toggle('hidden', extraGuests === 0);
-      document.getElementById('price-extra').textContent = '₺' + extraPrice;
-      document.getElementById('price-total').textContent = '₺' + total;
-      document.getElementById('pay-btn-text').innerHTML = '₺' + total + ' ' + t('complete_payment');
-    }
-
-    function handlePayment(event) {
-      event.preventDefault();
-      const user = getCurrentUser();
-      if (!user) { showScreen('login'); return; }
-      
-      const btn = document.getElementById('pay-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="animate-spin inline-block">⏳</span> ' + t('processing');
-      
-      setTimeout(() => {
-        const resId = 'TKT-' + Date.now();
-        const reservation = { id: resId, userTc: user.tc, locationId: currentBooking.locationId, locationName: currentBooking.locationName, room: currentBooking.room, checkin: currentBooking.checkin, checkout: currentBooking.checkout, guests: currentBooking.guests, hours: currentBooking.hours, price: currentBooking.price, status: 'active', createdAt: new Date().toISOString() };
-        saveReservation(reservation);
-        
-        document.getElementById('ticket-number').textContent = '#' + resId;
-        document.getElementById('ticket-room').textContent = '#' + reservation.room;
-        document.getElementById('ticket-location').textContent = reservation.locationName;
-        document.getElementById('ticket-checkin').textContent = formatDateTime(reservation.checkin);
-        document.getElementById('ticket-checkout').textContent = formatDateTime(reservation.checkout);
-        document.getElementById('ticket-guests').textContent = reservation.guests + ' ' + t('person');
-        
-        btn.disabled = false;
-        btn.innerHTML = t('payment_completed');
-        showToast(t('reservation_success'));
-        showScreen('ticket');
-        currentBooking = { locationId: null, locationName: null, checkin: null, checkout: null, room: null, guests: 2, price: 0, hours: 0 };
-      }, 2000);
-    }
-
-    // ==================== RESERVATION HISTORY ====================
-    let currentFilter = 'all';
-    
-    function loadReservations() {
-      const user = getCurrentUser();
-      if (!user) return;
-      
-      let reservations = getUserReservations(user.tc);
-      const now = new Date();
-      
-      reservations = reservations.map(res => {
-        if (res.status !== 'cancelled') {
-          const checkoutDate = new Date(res.checkout);
-          if (checkoutDate < now) res.status = 'completed';
-          else res.status = 'active';
-        }
-        return res;
+        marker.on('click', function() { selectLocationFromMap(id); });
+        mapMarkers[id] = marker;
       });
       
-      if (currentFilter !== 'all') reservations = reservations.filter(r => r.status === currentFilter);
-      reservations.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      renderReservations(reservations);
+      setTimeout(() => { leafletMap.invalidateSize(); }, 100);
+    }
+
+    // Location Selection
+    function selectLocationFromMap(id) { selectedLocationId = id; updateLocationSelection(id); saveAppState(); }
+    function updateLocationSelection(id) { 
+      document.querySelectorAll('.custom-marker').forEach(m => m.classList.remove('selected')); 
+      document.querySelectorAll('.location-card').forEach(c => c.classList.remove('selected')); 
+      const markerEl = document.getElementById('marker-' + id); 
+      const card = document.getElementById('card-' + id); 
+      if (markerEl) markerEl.classList.add('selected'); 
+      if (card) card.classList.add('selected'); 
+      const info = document.getElementById('selected-location-info'); 
+      const name = document.getElementById('selected-location-name'); 
+      const loc = locationData[id]; 
+      if (loc && info && name) { 
+        name.textContent = loc.name; 
+        info.classList.remove('hidden'); 
+        if (leafletMap && mapMarkers[id]) { 
+          leafletMap.setView([loc.lat, loc.lng], 8, { animate: true, duration: 0.5 }); 
+        }
+        setTimeout(() => info.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100); 
+      } 
+    }
+    function continueToDatetime() { if (!selectedLocationId) { showToast(t('select_location_first'), 'error'); return; } const loc = locationData[selectedLocationId]; currentBooking.locationId = selectedLocationId; currentBooking.locationName = loc.name; document.getElementById('datetime-location').textContent = loc.name; showScreen('datetime'); }
+
+    // Booking
+    function formatDate(d) { return new Date(d).toLocaleDateString(currentLang === 'tr' ? 'tr-TR' : currentLang === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }); }
+    function formatDateTime(d) { return new Date(d).toLocaleDateString(currentLang === 'tr' ? 'tr-TR' : currentLang === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+    function validateDateTime() { const ci = document.getElementById('checkin').value; const co = document.getElementById('checkout').value; const err = document.getElementById('datetime-error'); if (!ci || !co) { err.textContent = t('select_dates'); err.classList.remove('hidden'); return; } const ciD = new Date(ci), coD = new Date(co), now = new Date(); if (ciD < now) { err.textContent = t('past_date'); err.classList.remove('hidden'); return; } if (coD <= ciD) { err.textContent = t('checkout_before_checkin'); err.classList.remove('hidden'); return; } const h = (coD - ciD) / (1000 * 60 * 60); if (h > 24) { err.textContent = t('max_24_hours'); err.classList.remove('hidden'); return; } err.classList.add('hidden'); currentBooking.checkin = ci; currentBooking.checkout = co; currentBooking.hours = Math.ceil(h); document.getElementById('rooms-info').textContent = `${currentBooking.locationName} • ${formatDate(ci)}`; generateRooms(); showScreen('rooms'); }
+    function generateRooms() { const grid = document.getElementById('rooms-grid'); const loc = locationData[selectedLocationId]; const total = loc ? loc.rooms : 12; const av = loc ? loc.available : 8; const occ = []; while (occ.length < (total - av)) { const r = Math.floor(Math.random() * total) + 1; if (!occ.includes(r)) occ.push(r); } grid.innerHTML = ''; for (let i = 1; i <= total; i++) { const isO = occ.includes(i); grid.innerHTML += isO ? `<div class="room-card disabled bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg text-center border-2 border-[#FF4B5C]/20"><div class="w-14 h-14 bg-[#FF4B5C]/10 rounded-xl flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🏠</span></div><p class="font-bold text-gray-400">${t('room')} #${i}</p><span class="text-xs px-2 py-1 bg-[#FF4B5C]/10 text-[#FF4B5C] rounded-full">${t('occupied')}</span></div>` : `<button onclick="selectRoom(${i})" class="room-card bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg text-center border-2 border-transparent hover:border-[#30C48D]"><div class="w-14 h-14 bg-[#30C48D]/10 rounded-xl flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🏠</span></div><p class="font-bold text-gray-800 dark:text-white">${t('room')} #${i}</p><span class="text-xs px-2 py-1 bg-[#30C48D]/10 text-[#30C48D] rounded-full">${t('available')}</span></button>`; } }
+    function selectRoom(n) { currentBooking.room = n; document.getElementById('summary-room').textContent = '#' + n; document.getElementById('summary-location').textContent = currentBooking.locationName; document.getElementById('summary-checkin').textContent = formatDateTime(currentBooking.checkin); document.getElementById('summary-checkout').textContent = formatDateTime(currentBooking.checkout); updatePrice(); showScreen('payment'); }
+    function updatePrice() { const g = parseInt(document.getElementById('guests').value); currentBooking.guests = g; const h = currentBooking.hours || 1; const base = h * 50; const extra = Math.max(0, g - 1) * 25; const total = base + extra; currentBooking.price = total; document.getElementById('price-hours').textContent = h; document.getElementById('price-base').textContent = '₺' + base; document.getElementById('price-extra-row').classList.toggle('hidden', g <= 1); document.getElementById('price-extra').textContent = '₺' + extra; document.getElementById('price-total').textContent = '₺' + total; document.getElementById('pay-btn-text').innerHTML = '₺' + total + ' ' + t('complete_payment'); }
+    function handlePayment(e) { e.preventDefault(); const user = getCurrentUser(); if (!user) { showScreen('login'); return; } const btn = document.getElementById('pay-btn'); btn.disabled = true; btn.innerHTML = '<span class="animate-spin inline-block">⏳</span> ' + t('processing'); setTimeout(() => { const id = 'TKT-' + Date.now(); const res = { id, userTc: user.tc, locationId: currentBooking.locationId, locationName: currentBooking.locationName, room: currentBooking.room, checkin: currentBooking.checkin, checkout: currentBooking.checkout, guests: currentBooking.guests, hours: currentBooking.hours, price: currentBooking.price, status: 'active', createdAt: new Date().toISOString() }; saveReservation(res); document.getElementById('ticket-number').textContent = '#' + id; document.getElementById('ticket-room').textContent = '#' + res.room; document.getElementById('ticket-location').textContent = res.locationName; document.getElementById('ticket-checkin').textContent = formatDateTime(res.checkin); document.getElementById('ticket-checkout').textContent = formatDateTime(res.checkout); document.getElementById('ticket-guests').textContent = res.guests + ' ' + t('person'); document.getElementById('control-room-info').textContent = t('room') + ' #' + res.room + ' • ' + res.locationName; btn.disabled = false; btn.innerHTML = t('payment_completed'); showToast(t('reservation_success')); selectedLocationId = null; currentBooking = { locationId: null, locationName: null, checkin: null, checkout: null, room: null, guests: 2, price: 0, hours: 0 }; localStorage.removeItem('smartHome_appState'); showScreen('ticket'); }, 2000); }
+
+    // Reservations
+    function loadReservations() { const user = getCurrentUser(); if (!user) return; let res = getUserReservations(user.tc); const now = new Date(); res = res.map(r => { if (r.status !== 'cancelled') { r.status = new Date(r.checkout) < now ? 'completed' : 'active'; } return r; }); if (currentFilter !== 'all') res = res.filter(r => r.status === currentFilter); res.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); renderReservations(res); }
+    function renderReservations(res) { const list = document.getElementById('reservations-list'); const noRes = document.getElementById('no-reservations'); if (res.length === 0) { list.innerHTML = ''; noRes.classList.remove('hidden'); return; } noRes.classList.add('hidden'); list.innerHTML = res.map(r => { const colors = { active: 'bg-[#30C48D]/10 text-[#30C48D]', completed: 'bg-[#4F8EF7]/10 text-[#4F8EF7]', cancelled: 'bg-[#FF4B5C]/10 text-[#FF4B5C]' }; const texts = { active: t('status_active'), completed: t('status_completed'), cancelled: t('status_cancelled') }; const isActive = r.status === 'active'; const canCancel = isActive && new Date(r.checkin) > new Date(); return `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border-l-4 ${r.status === 'active' ? 'border-[#30C48D]' : r.status === 'completed' ? 'border-[#4F8EF7]' : 'border-[#FF4B5C]'}"><div class="flex flex-col md:flex-row md:items-center justify-between gap-4"><div class="flex items-start gap-4"><div class="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center flex-shrink-0"><span class="text-2xl">${r.status === 'cancelled' ? '❌' : '🏠'}</span></div><div><div class="flex items-center gap-3 mb-1"><h3 class="font-heading font-bold text-gray-800 dark:text-white">${r.locationName}</h3><span class="px-2 py-1 ${colors[r.status]} rounded-full text-xs font-medium">${texts[r.status]}</span></div><p class="text-gray-600 dark:text-gray-400 text-sm">${t('room')} #${r.room} • ${r.guests} ${t('person')}</p><p class="text-gray-500 text-sm mt-1">📅 ${formatDateTime(r.checkin)} → ${formatDateTime(r.checkout)}</p><p class="text-gray-400 text-xs mt-1">${t('ticket_no')}: #${r.id}</p></div></div><div class="flex items-center gap-2 ml-auto"><span class="font-bold text-lg text-gray-800 dark:text-white">₺${r.price}</span>${isActive ? `<button onclick="viewReservationTicket('${r.id}')" class="px-4 py-2 bg-[#4F8EF7] text-white rounded-xl text-sm font-medium hover:bg-[#3D7CE5]">🎫 ${t('view_ticket')}</button>` : ''}${canCancel ? `<button onclick="showCancelConfirm('${r.id}')" class="px-4 py-2 bg-[#FF4B5C]/10 text-[#FF4B5C] rounded-xl text-sm font-medium hover:bg-[#FF4B5C]/20">❌ ${t('cancel_reservation')}</button>` : ''}</div></div></div>`; }).join(''); }
+    function filterReservations(f) { currentFilter = f; document.querySelectorAll('.filter-btn').forEach(btn => { if (btn.dataset.filter === f) { btn.classList.remove('bg-white', 'text-gray-600', 'dark:bg-gray-700', 'dark:text-gray-300'); btn.classList.add('bg-[#4F8EF7]', 'text-white'); } else { btn.classList.remove('bg-[#4F8EF7]', 'text-white'); btn.classList.add('bg-white', 'text-gray-600', 'dark:bg-gray-700', 'dark:text-gray-300'); } }); loadReservations(); }
+    function viewReservationTicket(id) { const user = getCurrentUser(); if (!user) return; const all = JSON.parse(localStorage.getItem('smartHome_reservations') || '[]'); const r = all.find(x => x.id === id); if (r) { document.getElementById('ticket-number').textContent = '#' + r.id; document.getElementById('ticket-room').textContent = '#' + r.room; document.getElementById('ticket-location').textContent = r.locationName; document.getElementById('ticket-checkin').textContent = formatDateTime(r.checkin); document.getElementById('ticket-checkout').textContent = formatDateTime(r.checkout); document.getElementById('ticket-guests').textContent = r.guests + ' ' + t('person'); document.getElementById('control-room-info').textContent = t('room') + ' #' + r.room + ' • ' + r.locationName; showScreen('ticket'); } }
+    function showCancelConfirm(id) { cancelResId = id; document.getElementById('cancel-modal').classList.remove('hidden'); document.getElementById('cancel-modal').classList.add('flex'); }
+    function closeCancelModal() { cancelResId = null; document.getElementById('cancel-modal').classList.add('hidden'); document.getElementById('cancel-modal').classList.remove('flex'); }
+    function confirmCancelReservation() { if (cancelResId) { updateReservation(cancelResId, { status: 'cancelled' }); showToast(t('reservation_cancelled'), 'info'); loadReservations(); closeCancelModal(); } }
+    
+    // Terms & Privacy Modals
+    function openTermsModal() { document.getElementById('terms-modal').classList.remove('hidden'); document.getElementById('terms-modal').classList.add('flex'); }
+    function closeTermsModal() { document.getElementById('terms-modal').classList.add('hidden'); document.getElementById('terms-modal').classList.remove('flex'); }
+    function openPrivacyModal() { document.getElementById('privacy-modal').classList.remove('hidden'); document.getElementById('privacy-modal').classList.add('flex'); }
+    function closePrivacyModal() { document.getElementById('privacy-modal').classList.add('hidden'); document.getElementById('privacy-modal').classList.remove('flex'); }
+
+    // Nearest Location Functions
+    let nearestLocationId = null;
+    let userLocation = null;
+    
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      // Haversine formula for distance calculation
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
     }
     
-    function renderReservations(reservations) {
-      const listContainer = document.getElementById('reservations-list');
-      const noReservationsDiv = document.getElementById('no-reservations');
+    function findNearestLocation() {
+      const btn = document.getElementById('find-location-btn');
+      btn.innerHTML = '<span class="animate-spin inline-block">⏳</span> ' + t('finding_location');
+      btn.disabled = true;
       
-      if (reservations.length === 0) {
-        listContainer.innerHTML = '';
-        noReservationsDiv.classList.remove('hidden');
+      if (!navigator.geolocation) {
+        showToast(t('location_error'), 'error');
+        btn.innerHTML = '<span>🧭</span> <span data-i18n="use_my_location">' + t('use_my_location') + '</span>';
+        btn.disabled = false;
         return;
       }
       
-      noReservationsDiv.classList.add('hidden');
-      
-      listContainer.innerHTML = reservations.map(res => {
-        const statusColors = { active: 'bg-[#30C48D]/10 text-[#30C48D]', completed: 'bg-[#4F8EF7]/10 text-[#4F8EF7]', cancelled: 'bg-[#FF4B5C]/10 text-[#FF4B5C]' };
-        const statusTexts = { active: t('status_active'), completed: t('status_completed'), cancelled: t('status_cancelled') };
-        const isActive = res.status === 'active';
-        const checkinDate = new Date(res.checkin);
-        const canCancel = isActive && checkinDate > new Date();
-        
-        return `
-          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border-l-4 ${res.status === 'active' ? 'border-[#30C48D]' : res.status === 'completed' ? 'border-[#4F8EF7]' : 'border-[#FF4B5C]'}">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div class="flex items-start gap-4">
-                <div class="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center flex-shrink-0"><span class="text-2xl">${res.status === 'cancelled' ? '❌' : '🏠'}</span></div>
-                <div>
-                  <div class="flex items-center gap-3 mb-1">
-                    <h3 class="font-heading font-bold text-gray-800 dark:text-white">${res.locationName}</h3>
-                    <span class="px-2 py-1 ${statusColors[res.status]} rounded-full text-xs font-medium">${statusTexts[res.status]}</span>
-                  </div>
-                  <p class="text-gray-600 dark:text-gray-400 text-sm">${t('room')} #${res.room} • ${res.guests} ${t('person')}</p>
-                  <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">📅 ${formatDateTime(res.checkin)} → ${formatDateTime(res.checkout)}</p>
-                  <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">${t('ticket_no')}: #${res.id}</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2 ml-auto">
-                <span class="font-bold text-lg text-gray-800 dark:text-white">₺${res.price}</span>
-                ${isActive ? `<button onclick="viewReservationTicket('${res.id}')" class="px-4 py-2 bg-[#4F8EF7] text-white rounded-xl text-sm font-medium hover:bg-[#3D7CE5]">🎫 ${t('view_ticket')}</button>` : ''}
-                ${canCancel ? `<button onclick="showCancelConfirm('${res.id}')" class="px-4 py-2 bg-[#FF4B5C]/10 text-[#FF4B5C] rounded-xl text-sm font-medium hover:bg-[#FF4B5C]/20">❌ ${t('cancel_reservation')}</button>` : ''}
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-    
-    function filterReservations(filter) {
-      currentFilter = filter;
-      document.querySelectorAll('.filter-btn').forEach(btn => {
-        if (btn.dataset.filter === filter) { btn.classList.remove('bg-white', 'text-gray-600'); btn.classList.add('bg-[#4F8EF7]', 'text-white'); }
-        else { btn.classList.remove('bg-[#4F8EF7]', 'text-white'); btn.classList.add('bg-white', 'text-gray-600'); }
-      });
-      loadReservations();
-    }
-    
-    function viewReservationTicket(resId) {
-      const user = getCurrentUser();
-      if (!user) return;
-      const reservations = JSON.parse(localStorage.getItem('smartHome_reservations') || '[]');
-      const res = reservations.find(r => r.id === resId);
-      if (res) {
-        document.getElementById('ticket-number').textContent = '#' + res.id;
-        document.getElementById('ticket-room').textContent = '#' + res.room;
-        document.getElementById('ticket-location').textContent = res.locationName;
-        document.getElementById('ticket-checkin').textContent = formatDateTime(res.checkin);
-        document.getElementById('ticket-checkout').textContent = formatDateTime(res.checkout);
-        document.getElementById('ticket-guests').textContent = res.guests + ' ' + t('person');
-        document.getElementById('control-room-info').textContent = t('room') + ' #' + res.room + ' • ' + res.locationName;
-        showScreen('ticket');
-      }
-    }
-    
-    function showCancelConfirm(resId) {
-      const modal = document.createElement('div');
-      modal.id = 'cancel-modal';
-      modal.className = 'fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4';
-      modal.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-          <div class="text-center mb-6">
-            <div class="w-16 h-16 bg-[#FF4B5C]/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><span class="text-3xl">⚠️</span></div>
-            <h3 class="font-heading text-xl font-bold text-gray-800 dark:text-white mb-2">${t('cancel_confirm_title')}</h3>
-            <p class="text-gray-500 dark:text-gray-400">${t('cancel_confirm_msg')}</p>
-          </div>
-          <div class="flex gap-3">
-            <button onclick="closeCancelModal()" class="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600">${t('no_go_back')}</button>
-            <button onclick="cancelReservation('${resId}')" class="flex-1 py-3 bg-[#FF4B5C] text-white font-semibold rounded-xl hover:bg-[#E63E4C]">${t('yes_cancel')}</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    }
-    
-    function closeCancelModal() { const modal = document.getElementById('cancel-modal'); if (modal) modal.remove(); }
-    
-    function cancelReservation(resId) {
-      const reservations = JSON.parse(localStorage.getItem('smartHome_reservations') || '[]');
-      const resIndex = reservations.findIndex(r => r.id === resId);
-      if (resIndex !== -1) {
-        const res = reservations[resIndex];
-        if (new Date(res.checkin) <= new Date()) { showToast(t('cannot_cancel_past'), 'error'); closeCancelModal(); return; }
-        reservations[resIndex].status = 'cancelled';
-        reservations[resIndex].cancelledAt = new Date().toISOString();
-        localStorage.setItem('smartHome_reservations', JSON.stringify(reservations));
-        showToast(t('reservation_cancelled'), 'info');
-        closeCancelModal();
-        loadReservations();
-        updateDashboard();
-      }
-    }
-
-    // ==================== ROOM CONTROL ====================
-    function toggleSwitch(id) { document.getElementById('toggle-' + id).classList.toggle('active'); }
-    function updateTemp(value) { document.getElementById('temp-value').textContent = value + '°C'; }
-    function openDoor() {
-      const btn = document.getElementById('door-btn');
-      btn.innerHTML = '<span class="animate-spin">⏳</span> ' + t('opening');
-      btn.disabled = true;
-      setTimeout(() => {
-        btn.innerHTML = '<span>✅</span> ' + t('door_opened');
-        setTimeout(() => { btn.innerHTML = '<span>🔓</span> ' + t('open_door'); btn.disabled = false; }, 2000);
-      }, 1500);
-    }
-
-    // ==================== HELPERS ====================
-    function formatDateTime(dateString) {
-      const date = new Date(dateString);
-      const locales = { tr: 'tr-TR', en: 'en-US', de: 'de-DE' };
-      return date.toLocaleDateString(locales[currentLang] || 'tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    }
-    function formatDate(dateString) {
-      const date = new Date(dateString);
-      const locales = { tr: 'tr-TR', en: 'en-US', de: 'de-DE' };
-      return date.toLocaleDateString(locales[currentLang] || 'tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-    }
-
-    // ==================== LOGO ====================
-    function updateLogo(logoUrl) {
-      const customLogo = document.getElementById('custom-logo');
-      const defaultIcon = document.getElementById('default-logo-icon');
-      
-      if (logoUrl && logoUrl.trim() !== '') {
-        customLogo.src = logoUrl;
-        customLogo.classList.remove('hidden');
-        customLogo.style.display = 'block';
-        defaultIcon.style.display = 'none';
-      } else {
-        customLogo.classList.add('hidden');
-        customLogo.style.display = 'none';
-        defaultIcon.style.display = 'block';
-      }
-    }
-
-    // ==================== ELEMENT SDK ====================
-    if (window.elementSdk) {
-      window.elementSdk.init({
-        defaultConfig,
-        onConfigChange: async (config) => {
-          const title = document.getElementById('main-title');
-          const subtitle = document.getElementById('main-subtitle');
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
           
-          if (title) title.textContent = config.app_title || defaultConfig.app_title;
-          if (subtitle) subtitle.textContent = config.welcome_subtitle || defaultConfig.welcome_subtitle;
+          let nearestDist = Infinity;
+          let nearestId = null;
           
-          // Logo güncelleme
-          updateLogo(config.logo_url || defaultConfig.logo_url);
+          Object.keys(locationData).forEach(id => {
+            const loc = locationData[id];
+            const dist = calculateDistance(userLocation.lat, userLocation.lng, loc.lat, loc.lng);
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              nearestId = id;
+            }
+          });
+          
+          nearestLocationId = nearestId;
+          const nearestLoc = locationData[nearestId];
+          
+          document.getElementById('nearest-name').textContent = nearestLoc.name;
+          document.getElementById('nearest-distance').textContent = '📍 ' + nearestDist.toFixed(1) + ' ' + t('km_away');
+          document.getElementById('nearest-result').classList.remove('hidden');
+          
+          btn.innerHTML = '✅ ' + t('location_found');
+          btn.disabled = false;
+          
+          showToast(t('location_found'), 'success');
+          
+          // Zoom to user location on map
+          if (leafletMap) {
+            // Add user marker
+            const userIcon = L.divIcon({ className: '', html: '<div class="w-6 h-6 bg-blue-500 rounded-full border-3 border-white shadow-lg flex items-center justify-center"><span class="text-xs">📍</span></div>', iconSize: [24, 24], iconAnchor: [12, 12] });
+            L.marker([userLocation.lat, userLocation.lng], { icon: userIcon }).addTo(leafletMap).bindPopup('<div class="popup-content"><p>' + t('use_my_location') + '</p></div>');
+            
+            // Fit bounds to show both user and nearest location
+            const bounds = L.latLngBounds([
+              [userLocation.lat, userLocation.lng],
+              [nearestLoc.lat, nearestLoc.lng]
+            ]);
+            leafletMap.fitBounds(bounds, { padding: [50, 50] });
+          }
+          
+          // Highlight nearest location
+          updateLocationSelection(nearestId);
+          
         },
-        mapToCapabilities: () => ({ recolorables: [], borderables: [], fontEditable: undefined, fontSizeable: undefined }),
-        mapToEditPanelValues: (config) => new Map([
-          ['app_title', config.app_title || defaultConfig.app_title],
-          ['welcome_subtitle', config.welcome_subtitle || defaultConfig.welcome_subtitle],
-          ['logo_url', config.logo_url || defaultConfig.logo_url]
-        ])
-      });
+        (error) => {
+          let errorMsg = t('location_error');
+          if (error.code === 1) errorMsg = t('location_denied');
+          showToast(errorMsg, 'error');
+          btn.innerHTML = '<span>🧭</span> <span data-i18n="use_my_location">' + t('use_my_location') + '</span>';
+          btn.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
     }
+    
+    function selectNearestLocation() {
+      if (nearestLocationId) {
+        selectLocationFromMap(nearestLocationId);
+        document.getElementById('selected-location-info').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    
+    // Room Controls
+    function toggleSwitch(id) { document.getElementById('toggle-' + id).classList.toggle('active'); }
+    function updateTemp(v) { document.getElementById('temp-value').textContent = v + '°C'; }
+    function openDoor() { const btn = document.getElementById('door-btn'); btn.innerHTML = '⏳ ' + t('opening'); btn.disabled = true; setTimeout(() => { btn.innerHTML = '✅ ' + t('door_opened'); setTimeout(() => { btn.innerHTML = '🔓 ' + t('open_door'); btn.disabled = false; }, 3000); }, 2000); }
 
-    // ==================== INIT ====================
-    function init() {
-      // Dark mode başlat
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
       applyDarkMode();
-      
-      document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.lang === currentLang));
-      updateAllTranslations();
-      
+      setLanguage(currentLang);
       const user = getCurrentUser();
-      showScreen(user ? 'dashboard' : 'welcome');
-      
-      const cardNumber = document.getElementById('card-number');
-      if (cardNumber) cardNumber.addEventListener('input', function(e) { let v = e.target.value.replace(/\D/g, ''); e.target.value = v.match(/.{1,4}/g)?.join(' ') || v; });
-      
-      const cardExpiry = document.getElementById('card-expiry');
-      if (cardExpiry) cardExpiry.addEventListener('input', function(e) { let v = e.target.value.replace(/\D/g, ''); if (v.length >= 2) v = v.slice(0,2) + '/' + v.slice(2,4); e.target.value = v; });
-      
-      const now = new Date().toISOString().slice(0, 16);
-      const checkinInput = document.getElementById('checkin');
-      const checkoutInput = document.getElementById('checkout');
-      if (checkinInput) checkinInput.min = now;
-      if (checkoutInput) checkoutInput.min = now;
-    }
-
-    init();
+      if (user) { const saved = restoreAppState(); if (saved && !['welcome', 'login', 'register'].includes(saved)) showScreen(saved); else showScreen('dashboard'); }
+      if (window.elementSdk) { window.elementSdk.init({ defaultConfig: { app_title: 'Akıllı Ev Kiralama Sistemi', welcome_subtitle: 'Akıllı odalara anlık rezervasyon, kontrol ve giriş sistemi' }, onConfigChange: async (config) => { if (config.app_title) document.getElementById('main-title').textContent = config.app_title; if (config.welcome_subtitle) document.getElementById('main-subtitle').textContent = config.welcome_subtitle; }, mapToCapabilities: () => ({ recolorables: [], borderables: [], fontEditable: undefined, fontSizeable: undefined }), mapToEditPanelValues: (config) => new Map([['app_title', config.app_title || ''], ['welcome_subtitle', config.welcome_subtitle || '']]) }); }
+    });
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9af942c0416ed5ef',t:'MTc2NjAwNDI5MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b07565b8208d5ef',t:'MTc2NjE1MTg5NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
